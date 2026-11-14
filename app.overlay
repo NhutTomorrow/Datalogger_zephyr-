@@ -1,0 +1,59 @@
+/ {
+    chosen {
+        /* Không gán zephyr,console vào usart3 để tránh xung đột giao tiếp ESP32 Gateway */
+    };
+
+    leds {
+        compatible = "gpio-leds";
+        debug_led: led_0 {
+            gpios = <&gpioe 4 GPIO_ACTIVE_HIGH>;
+            label = "DEBUG_LED";
+        };
+    };
+
+    custom_pins {
+        compatible = "gpio-keys";
+        btn_load: btn_load {
+            gpios = <&gpiod 3 GPIO_ACTIVE_HIGH>;
+            label = "BTN_LOAD";
+        };
+        lcd_blk: lcd_blk {
+            gpios = <&gpioa 8 GPIO_ACTIVE_HIGH>;
+            label = "FSMC_BLK";
+        };
+        fsmc_res: fsmc_res {
+            gpios = <&gpioc 13 GPIO_ACTIVE_HIGH>;
+            label = "FSMC_RES";
+        };
+    };
+};
+
+/* Cấu hình UART3 kết nối ESP32 Gateway */
+&usart3 {
+    pinctrl-0 = <&usart3_tx_pb10 &usart3_rx_pb11>;
+    pinctrl-names = "default";
+    current-speed = <115200>;
+    status = "okay";
+};
+
+/* Cấu hình SPI1 đọc thanh ghi dịch 74HC165 */
+&spi1 {
+    pinctrl-0 = <&spi1_sck_pb3 &spi1_miso_pb4 &spi1_mosi_pb5>;
+    pinctrl-names = "default";
+    status = "okay";
+};
+
+/* Phân vùng Flash nội STM32F407 cho Zephyr NVS */
+&flash0 {
+    partitions {
+        compatible = "fixed-partitions";
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        /* 2 Sector cuối (Sector 10: 128KB, Sector 11: 128KB = 128KB) dành cho NVS */
+        storage_partition: partition@c0000 {
+            label = "storage";
+            reg = <0x000e0000 0x00020000>;
+        };
+    };
+};

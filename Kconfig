@@ -1,0 +1,14 @@
+# Copyright (c) 2026
+# SPDX-License-Identifier: Apache-2.0
+
+mainmenu "Datalogger Zephyr Application"
+
+config APP_ENABLE_STM32_HAL_FSMC
+	bool "Enable STM32 HAL/LL for Custom FSMC LCD"
+	default y
+	select USE_STM32_HAL_SRAM
+	select USE_STM32_LL_FSMC
+	select USE_STM32_HAL_GPIO
+	select USE_STM32_HAL_RCC
+
+source "Kconfig.zephyr"

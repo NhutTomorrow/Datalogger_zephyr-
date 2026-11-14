@@ -1,0 +1,84 @@
+/**
+ * @file main.c
+ * @brief Điểm khởi tạo hệ thống Datalogger trên Zephyr RTOS (BKIT STM32F407).
+ */
+
+#include <zephyr/kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/logging/log.h>
+
+#include "sensor_manager.h"
+#include "fault_manager.h"
+#include "app_fsm.h"
+#include "mock_sensor.h"
+#include "bsp_uart.h"
+#include "bsp_button.h"
+#include "bsp_lcd.h"
+
+LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
+
+/* Context toàn cục của hệ thống */
+static app_context_t g_app;
+static sensor_manager_t g_sensor_mgr;
+static fault_manager_t g_fault_mgr;
+
+/* Node LED debug trên bo mạch (PE4) */
+#define DEBUG_LED_NODE DT_NODELABEL(debug_led)
+static const struct gpio_dt_spec s_debug_led = GPIO_DT_SPEC_GET(DEBUG_LED_NODE, gpios);
+
+int main(void)
+{
+    LOG_INF("==============================================");
+    LOG_INF("  DATALOGGER BKIT STM32F407 - ZEPHYR RTOS     ");
+    LOG_INF("==============================================");
+
+    /* 1. Cấu hình GPIO Debug LED */
+    if (gpio_is_ready_dt(&s_debug_led)) {
+        gpio_pin_configure_dt(&s_debug_led, GPIO_OUTPUT_INACTIVE);
+    }
+
+    /* 2. Đăng ký các kênh cảm biến vào Sensor Manager */
+    sensor_manager_init(&g_sensor_mgr);
+    sensor_manager_register_channel(&g_sensor_mgr, "NhietDo", UNIT_CELSIUS, mock_sensor_get_temperature_ops());
+    sensor_manager_register_channel(&g_sensor_mgr, "Dong4_20mA", UNIT_MILLIAMP, mock_sensor_get_current_loop_ops());
+
+    /* 3. Khởi tạo Fault Manager */
+    fault_manager_init(&g_fault_mgr);
+
+    /* 4. Khởi tạo ngoại vi UART với Zephyr k_msgq */
+    bsp_uart_init();
+
+    /* 5. Khởi tạo FSM với các driver BSP trực tiếp */
+    app_dependencies_t deps = {
+        .sensor_mgr   = &g_sensor_mgr,
+        .fault_mgr    = &g_fault_mgr,
+        .button_count = 16
+    };
+    app_init(&g_app, &deps);
+
+    LOG_INF("He thong da khoi dong thanh cong. Bat dau FSM loop...");
+
+    /* 6. Vòng lặp điều phối chính (FSM Step + Debug LED) */
+    uint32_t last_led_toggle_ms = 0;
+
+    while (1) {
+        uint32_t now_ms = k_uptime_get_32();
+
+        /* Thực thi một chu kỳ của App FSM (kèm xử lý byte UART từ k_msgq trong Thread Mode) */
+        app_run_step(&g_app, now_ms);
+
+        /* Nhấp nháy Debug LED chu kỳ 500ms */
+        if (now_ms - last_led_toggle_ms >= 500) {
+            last_led_toggle_ms = now_ms;
+            if (gpio_is_ready_dt(&s_debug_led)) {
+                gpio_pin_toggle_dt(&s_debug_led);
+            }
+        }
+
+        /* Nhường CPU cho các luồng hệ thống và ISR */
+        k_msleep(10);
+    }
+
+    return 0;
+}
