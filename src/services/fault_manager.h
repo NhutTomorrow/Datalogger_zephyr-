@@ -26,7 +26,7 @@ extern "C"
 /* Nhóm 0x1000 - 0x1FFF: Cảm biến & Tín hiệu đo lường */
 #define FAULT_4_20MA_LOOP_OPEN 0x1001          /**< Dòng < 3.6mA: Hở mạch / đứt cáp tín hiệu */
 #define FAULT_4_20MA_LOOP_OVERCURRENT 0x1002   /**< Dòng > 21.0mA: Chập mạch / hỏng transmitter */
-#define FAULT_SENSOR_I2C_TIMEOUT 0x1003        /**< Cảm biến môi trường (SHT/BME) không phản hồi I2C */
+#define FAULT_SENSOR_TIMEOUT 0x1003        /**< Cảm biến  không phản hồi  */
 #define FAULT_SENSOR_DATA_OUT_OF_BOUNDS 0x1004 /**< Giá trị nhiệt độ/độ ẩm vượt ngưỡng vật lý hợp lý */
 
 /* Nhóm 0x2000 - 0x2FFF: Lưu trữ & Hệ thống tập tin */

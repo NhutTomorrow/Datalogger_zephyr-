@@ -4,6 +4,7 @@
  */
 
 #include "channel_hw_caps.h"
+#include "channel_config.h"
 #include <stddef.h>
 
 #define MODE_BM(m) (1U << (m))
@@ -101,7 +102,7 @@ static const channel_hw_cap_entry_t s_hw_caps[CHANNEL_MAX_COUNT] = {
     /* CH_12: PE5 - Opto EL3H7 U24 kích MOSFET NCE6020AK (Open-Drain) */
     {
         .channel_id         = 12,
-        .supported_modes_bm = MODE_BM(MODE_DISABLED) | MODE_BM(MODE_OUTPUT),
+        .supported_modes_bm = MODE_BM(MODE_DISABLED) | MODE_BM(MODE_OUT_CONTROL),
         .conflict_group     = CONFLICT_GROUP_NONE,
         .port_name          = "PE5",
         .description        = "MOSFET Open-Drain NCE6020AK Y0 + LED10"
@@ -109,7 +110,7 @@ static const channel_hw_cap_entry_t s_hw_caps[CHANNEL_MAX_COUNT] = {
     /* CH_13: PE6 - Opto EL3H7 U25 kích MOSFET NCE6020AK (Open-Drain) */
     {
         .channel_id         = 13,
-        .supported_modes_bm = MODE_BM(MODE_DISABLED) | MODE_BM(MODE_OUTPUT),
+        .supported_modes_bm = MODE_BM(MODE_DISABLED) | MODE_BM(MODE_OUT_CONTROL),
         .conflict_group     = CONFLICT_GROUP_NONE,
         .port_name          = "PE6",
         .description        = "MOSFET Open-Drain NCE6020AK Y1 + LED11"
@@ -117,7 +118,7 @@ static const channel_hw_cap_entry_t s_hw_caps[CHANNEL_MAX_COUNT] = {
     /* CH_14: PF8 - Transistor Q3 kích Buzzer */
     {
         .channel_id         = 14,
-        .supported_modes_bm = MODE_BM(MODE_DISABLED) | MODE_BM(MODE_OUTPUT),
+        .supported_modes_bm = MODE_BM(MODE_DISABLED) | MODE_BM(MODE_OUT_CONTROL),
         .conflict_group     = CONFLICT_GROUP_NONE,
         .port_name          = "PF8",
         .description        = "Buzzer Transistor Driver (2SC1815)"

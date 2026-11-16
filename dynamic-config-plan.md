@@ -363,9 +363,9 @@ MODE_RS485         → bsp_rs485_ops   + bsp_rs485_init()
 | `bsp_i2c_sensor` | `src/bsp/bsp_i2c_sensor_zephyr.c` | Đọc cảm biến I2C (SHT3x, BME280...) | P2 |
 
 Checklist:
-- [ ] Mỗi BSP driver phải implement đầy đủ 4 hàm trong `sensor_driver_ops_t`: `init`, `read`, `health_check`, `inject_fault`
-- [ ] `bsp_adc`: Sử dụng Zephyr ADC API (`adc_channel_setup()`, `adc_read()`) — KHÔNG dùng HAL trực tiếp
-- [ ] `bsp_dout`: Hàm `read` trả về trạng thái hiện tại (ON/OFF), hàm riêng `bsp_dout_set()` để điều khiển
+- [x] Mỗi BSP driver phải implement đầy đủ 4 hàm trong `sensor_driver_ops_t`: `init`, `read`, `health_check`, `inject_fault`
+- [x] `bsp_adc`: Sử dụng Zephyr ADC API (`adc_channel_setup()`, `adc_read()`) — KHÔNG dùng HAL trực tiếp
+- [x] `bsp_dout`: Hàm `read` trả về trạng thái hiện tại (ON/OFF), hàm riêng `bsp_dout_set()` để điều khiển
 
 ---
 
@@ -455,9 +455,17 @@ Trong đó Tag = channel_id (0x01..0x12)
 ```
 
 Checklist:
-- [ ] Hàm đóng gói TLV: `uint16_t tlv_encode_telemetry(channel_manager_t *mgr, uint8_t *buf, uint16_t max_len)`
-- [ ] Hàm giải mã TLV (phía ESP32): Dùng vòng lặp `offset += 1 + 1 + length`, bỏ qua Tag lạ (Forward Compatibility)
-- [ ] `COMM_MAX_PAYLOAD_LEN` hiện là 128 byte — đủ cho 18 kênh × (1+1+4) byte = 108 byte. OK.
+- [x] Hàm đóng gói TLV: `uint16_t comm_tlv_encode_channels(const comm_channel_entry_t *entries, uint8_t count, uint8_t *out_buf, uint16_t max_len)`
+- [x] Hàm giải mã TLV (phía ESP32): `uint8_t comm_tlv_decode_channels(...)`, bỏ qua Tag/Length lạ (Forward Compatibility)
+- [x] `COMM_MAX_PAYLOAD_LEN` 128 byte — Compact wire format 7B header + N*6B (18 kênh = 115B <= 128B). OK.
+- [x] Handler lệnh `COMM_CMD_CONFIG_CHANNEL` (0x10) tích hợp FSM và map mã lỗi NACK (`COMM_ERR_PIN_CONFLICT`, `COMM_ERR_UNSUPPORTED_MODE`).
+- [x] Handler lệnh `COMM_CMD_DISABLE_CHANNEL` (0x11).
+- [x] Handler lệnh `COMM_CMD_GET_CHANNEL_CONFIG` (0x12).
+- [x] Handler lệnh `COMM_CMD_GET_CONFIG_VERSION` (0x16).
+- [x] Handler lệnh `COMM_CMD_FLUSH_CONFIG_NVS` (0x17).
+- [x] Handler lệnh `COMM_CMD_SET_OUTPUT` (0x18) & `COMM_CMD_GET_OUTPUT_STATE` (0x19).
+- [x] Handler lệnh `COMM_CMD_GET_DYNAMIC_TELEMETRY` (0x1A).
+- [x] 12/12 Unit tests kiểm thử toàn bộ giao thức và luồng FSM đạt 100% PASSED.
 
 ---
 

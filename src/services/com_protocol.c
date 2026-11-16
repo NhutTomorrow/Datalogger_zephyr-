@@ -254,3 +254,80 @@ void comm_parser_feed_buffer(comm_parser_t *parser, const uint8_t *buf, uint16_t
         comm_parser_feed_byte(parser, buf[i]);
     }
 }
+
+// /* ========================================================================= */
+// /* ĐÓNG GÓI & GIẢI MÃ TLV (TAG-LENGTH-VALUE ENCODER / DECODER)               */
+// /* ========================================================================= */
+
+// uint16_t comm_tlv_encode_channels(const comm_channel_entry_t *entries,
+//                                   uint8_t count,
+//                                   uint8_t *out_buf,
+//                                   uint16_t max_len)
+// {
+//     if (entries == NULL || out_buf == NULL)
+//     {
+//         return 0;
+//     }
+
+//     /* Mỗi entry: Tag(1B) + Length(1B) + Status(1B) + Value(4B) = 7 bytes */
+//     const uint8_t item_val_len = (uint8_t)(sizeof(uint8_t) + sizeof(float)); /* 5 bytes */
+//     const uint16_t needed_len = (uint16_t)count * (2 + item_val_len);
+
+//     if (needed_len > max_len)
+//     {
+//         return 0;
+//     }
+
+//     uint16_t offset = 0;
+//     for (uint8_t i = 0; i < count; i++)
+//     {
+//         out_buf[offset++] = entries[i].channel_id;   /* Tag */
+//         out_buf[offset++] = item_val_len;           /* Length = 5 */
+//         out_buf[offset++] = entries[i].status;       /* Value[0] = status */
+//         memcpy(&out_buf[offset], &entries[i].value, sizeof(float)); /* Value[1..4] */
+//         offset += (uint16_t)sizeof(float);
+//     }
+
+//     return offset;
+// }
+
+// uint8_t comm_tlv_decode_channels(const uint8_t *tlv_buf,
+//                                  uint16_t tlv_len,
+//                                  comm_channel_entry_t *out_entries,
+//                                  uint8_t max_entries)
+// {
+//     if (tlv_buf == NULL || out_entries == NULL || max_entries == 0)
+//     {
+//         return 0;
+//     }
+
+//     uint16_t offset = 0;
+//     uint8_t decoded_count = 0;
+
+//     while (offset + 2 <= tlv_len && decoded_count < max_entries)
+//     {
+//         uint8_t tag = tlv_buf[offset++];
+//         uint8_t len = tlv_buf[offset++];
+
+//         /* Kiểm tra tránh đọc tràn buffer */
+//         if (offset + len > tlv_len)
+//         {
+//             break;
+//         }
+
+//         /* Định dạng chuẩn: Tag (1..18), Length >= 5 (Status 1B + Float 4B) */
+//         if (len >= 5)
+//         {
+//             out_entries[decoded_count].channel_id = tag;
+//             out_entries[decoded_count].status     = tlv_buf[offset];
+//             memcpy(&out_entries[decoded_count].value, &tlv_buf[offset + 1], sizeof(float));
+//             decoded_count++;
+//         }
+
+//         /* Tự động nhảy qua phần mở rộng nếu len > 5 (Forward Compatibility) */
+//         offset += len;
+//     }
+
+//     return decoded_count;
+// }
+

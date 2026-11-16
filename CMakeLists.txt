@@ -19,16 +19,14 @@ target_sources(app PRIVATE
     # Services (Pure C99)
     src/services/com_protocol.c
     src/services/fault_manager.c
-    src/services/sensor_manager.c
     src/services/button_manager.c
     src/services/channel_config.c
     src/services/channel_hw_caps.c
-    
-    # Mocking (Pure C99)
-    src/mock/mock_sensor.c
+    src/services/channel_manager.c
+    src/services/driver_registry.c
+  
     
     # Application Logic (Pure C99)
-    src/app/data_manager.c
     src/app/app_fsm.c
     
     # Zephyr BSP Drivers
@@ -36,4 +34,8 @@ target_sources(app PRIVATE
     src/bsp/bsp_button_zephyr.c
     src/bsp/bsp_lcd_zephyr.c
     src/bsp/lcd_font.c
+    src/bsp/bsp_adc_zephyr.c
+    src/bsp/bsp_dout_zephyr.c
+    src/bsp/bsp_din_zephyr.c
+    src/bsp/bsp_rs485_zephyr.c
 )

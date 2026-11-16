@@ -9,7 +9,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include "sensor_manager.h"
+#include "channel_manager.h"
 
 /* Hướng quét hiển thị */
 #define DFT_SCAN_DIR  L2R_U2D

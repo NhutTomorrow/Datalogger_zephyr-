@@ -9,7 +9,7 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/uart.h>
 
-#define UART_NODE DT_NODELABEL(usart3)
+#define UART_NODE DT_NODELABEL(usart6)
 
 static const struct device *s_uart_dev = DEVICE_DT_GET(UART_NODE);
 

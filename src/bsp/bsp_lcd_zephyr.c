@@ -621,7 +621,7 @@ void bsp_lcd_show_telemetry(const sensor_telemetry_snapshot_t *snapshot) {
     /* Thanh Header cố định ở đỉnh màn hình */
     lcd_clear(BLACK);
     lcd_fill(0, 0, lcddev.width - 1, 26, DARKBLUE);
-    lcd_show_string(10, 5, "DATALOGGER TELEMETRY [BKIT]", WHITE, DARKBLUE, 16, 0);
+    lcd_show_string(12, 5, "DATALOGGER TELEMETRY [BKIT]", WHITE, DARKBLUE, 16, 0);
     uint16_t start_y = 34;
     /* Vẽ danh sách từng kênh đo */
     for (uint8_t i = 0; i < snapshot->total_channels; i++) {
@@ -635,7 +635,7 @@ void bsp_lcd_show_telemetry(const sensor_telemetry_snapshot_t *snapshot) {
         lcd_fill(8, row_y, lcddev.width - 9, row_y + 22, bg_color);
         lcd_draw_rectangle(8, row_y, lcddev.width - 9, row_y + 22, border_color);
         if (ch->is_valid) {
-            snprintf(line_buf, sizeof(line_buf), "CH_%u [%-10s]: %6.2f %s",
+            snprintf(line_buf, sizeof(line_buf), "CH_%u [%-6s]: %6.2f %s",
                      ch->channel_id, ch->name, ch->value, sensor_unit_to_str(ch->unit));
             lcd_show_string(14, row_y + 3, line_buf, GREEN, bg_color, 16, 0);
         } else {

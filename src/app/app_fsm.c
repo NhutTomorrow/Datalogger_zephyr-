@@ -5,11 +5,14 @@
 
 #include "app_fsm.h"
 #include <string.h>
+#include <errno.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/reboot.h>
 #include "bsp_lcd.h"
 #include "bsp_uart.h"
 #include "bsp_button.h"
+#include "bsp_dout.h"
+#include "../services/channel_hw_caps.h"
 
 #define BOOT_SCREEN_DURATION_MS 5000
 #define ERROR_TOGGLE_INTERVAL_MS 2000
@@ -63,12 +66,26 @@ static void on_uart_packet_received(const comm_packet_t *packet, void *user_ctx)
         break;
     }
 
-    case COMM_CMD_GET_TELEMETRY:
+    case COMM_CMD_READ_CHANNEL:
     {
-        comm_payload_telemetry_t telem_payload;
-        uint8_t fault_count = fault_manager_get_count(app->fault_mgr);
-        data_manager_get_telemetry_payload(&app->data_mgr, fault_count, &telem_payload);
-        app_send_uart_response(app, COMM_CMD_RESP_TELEMETRY, packet->seq, &telem_payload, sizeof(telem_payload));
+        if (packet->len < 1)
+        {
+            comm_payload_nack_t nack = {.failed_cmd = packet->cmd, .error_code = COMM_ERR_INVALID_PARAM};
+            app_send_uart_response(app, COMM_CMD_NACK, packet->seq, &nack, sizeof(nack));
+            break;
+        }
+
+        uint8_t ch_id = packet->payload[0];
+        comm_payload_read_channel_resp_t resp;
+        if (channel_manager_read_single(app->channel_mgr, ch_id, &resp))
+        {
+            app_send_uart_response(app, COMM_CMD_RESP_CHANNEL, packet->seq, &resp, sizeof(resp));
+        }
+        else
+        {
+            comm_payload_nack_t nack = {.failed_cmd = packet->cmd, .error_code = COMM_ERR_CHANNEL_NOT_FOUND};
+            app_send_uart_response(app, COMM_CMD_NACK, packet->seq, &nack, sizeof(nack));
+        }
         break;
     }
 
@@ -106,10 +123,14 @@ static void on_uart_packet_received(const comm_packet_t *packet, void *user_ctx)
         if (packet->len >= sizeof(comm_payload_logging_t))
         {
             const comm_payload_logging_t *log_cmd = (const comm_payload_logging_t *)packet->payload;
-            data_manager_set_logging(&app->data_mgr, log_cmd->enable != 0, log_cmd->sample_interval_ms);
+            app->logging_enabled = (log_cmd->enable != 0);
+            if (log_cmd->sample_interval_ms > 0)
+            {
+                app->logging_interval_ms = log_cmd->sample_interval_ms;
+            }
             if (app->state != FSM_STATE_ERROR)
             {
-                app->state = (log_cmd->enable != 0) ? FSM_STATE_LOGGING : FSM_STATE_IDLE;
+                app->state = app->logging_enabled ? FSM_STATE_LOGGING : FSM_STATE_IDLE;
             }
             comm_payload_ack_t ack = {.acked_cmd = packet->cmd, .status = COMM_ERR_OK};
             app_send_uart_response(app, COMM_CMD_ACK, packet->seq, &ack, sizeof(ack));
@@ -159,6 +180,212 @@ static void on_uart_packet_received(const comm_packet_t *packet, void *user_ctx)
         sys_reboot(SYS_REBOOT_COLD);
         break;
     }
+
+    case COMM_CMD_CONFIG_CHANNEL:
+    {
+        if (packet->len < sizeof(ChannelConfig_t))
+        {
+            comm_payload_nack_t nack = {.failed_cmd = packet->cmd, .error_code = COMM_ERR_INVALID_PARAM};
+            app_send_uart_response(app, COMM_CMD_NACK, packet->seq, &nack, sizeof(nack));
+            break;
+        }
+
+        ChannelConfig_t cfg;
+        memcpy(&cfg, packet->payload, sizeof(ChannelConfig_t));
+
+        int ret = channel_manager_configure(app->channel_mgr, &cfg, NULL, NULL);
+        if (ret == 0)
+        {
+            comm_payload_ack_t ack = {.acked_cmd = packet->cmd, .status = COMM_ERR_OK};
+            app_send_uart_response(app, COMM_CMD_ACK, packet->seq, &ack, sizeof(ack));
+        }
+        else
+        {
+            uint8_t err_code;
+            switch (ret)
+            {
+            case -EBUSY:
+                err_code = COMM_ERR_PIN_CONFLICT;
+                break;
+            case -ENOTSUP:
+                err_code = COMM_ERR_UNSUPPORTED_MODE;
+                break;
+            case -EINVAL:
+                err_code = COMM_ERR_INVALID_PARAM;
+                break;
+            case -ENOSPC:
+                err_code = COMM_ERR_STORAGE_FAIL;
+                break;
+            default:
+                err_code = COMM_ERR_HARDWARE_FAILURE;
+                break;
+            }
+            comm_payload_nack_t nack = {.failed_cmd = packet->cmd, .error_code = err_code};
+            app_send_uart_response(app, COMM_CMD_NACK, packet->seq, &nack, sizeof(nack));
+        }
+        break;
+    }
+
+    case COMM_CMD_DISABLE_CHANNEL:
+    {
+        if (packet->len < 1)
+        {
+            comm_payload_nack_t nack = {.failed_cmd = packet->cmd, .error_code = COMM_ERR_INVALID_PARAM};
+            app_send_uart_response(app, COMM_CMD_NACK, packet->seq, &nack, sizeof(nack));
+            break;
+        }
+
+        uint8_t ch_id = packet->payload[0];
+        int ret = channel_manager_disable(app->channel_mgr, ch_id);
+        if (ret == 0)
+        {
+            comm_payload_ack_t ack = {.acked_cmd = packet->cmd, .status = COMM_ERR_OK};
+            app_send_uart_response(app, COMM_CMD_ACK, packet->seq, &ack, sizeof(ack));
+        }
+        else
+        {
+            comm_payload_nack_t nack = {.failed_cmd = packet->cmd, .error_code = COMM_ERR_CHANNEL_NOT_FOUND};
+            app_send_uart_response(app, COMM_CMD_NACK, packet->seq, &nack, sizeof(nack));
+        }
+        break;
+    }
+
+    case COMM_CMD_GET_CHANNEL_CONFIG:
+    {
+        if (packet->len < 1)
+        {
+            comm_payload_nack_t nack = {.failed_cmd = packet->cmd, .error_code = COMM_ERR_INVALID_PARAM};
+            app_send_uart_response(app, COMM_CMD_NACK, packet->seq, &nack, sizeof(nack));
+            break;
+        }
+
+        uint8_t ch_id = packet->payload[0];
+        ChannelConfig_t cfg;
+        int ret = channel_manager_get_channel_config(app->channel_mgr, ch_id, &cfg);
+        if (ret == 0)
+        {
+            app_send_uart_response(app, COMM_CMD_RESP_CHANNEL_CONFIG, packet->seq, &cfg, sizeof(cfg));
+        }
+        else
+        {
+            comm_payload_nack_t nack = {.failed_cmd = packet->cmd, .error_code = COMM_ERR_CHANNEL_NOT_FOUND};
+            app_send_uart_response(app, COMM_CMD_NACK, packet->seq, &nack, sizeof(nack));
+        }
+        break;
+    }
+
+    case COMM_CMD_GET_CONFIG_VERSION:
+    {
+        config_table_header_t hdr;
+        channel_manager_get_config_table(app->channel_mgr, &hdr, NULL, 0);
+
+        comm_payload_config_version_t resp;
+        resp.config_version = hdr.config_version;
+        resp.crc32 = hdr.crc32;
+        resp.active_channels_count = channel_manager_get_active_count(app->channel_mgr);
+        resp.is_dirty = (app->channel_mgr != NULL && app->channel_mgr->is_dirty) ? 1 : 0;
+
+        app_send_uart_response(app, COMM_CMD_RESP_CONFIG_VERSION, packet->seq, &resp, sizeof(resp));
+        break;
+    }
+
+    case COMM_CMD_FLUSH_CONFIG_NVS:
+    {
+        int ret = channel_manager_flush_nvs(app->channel_mgr);
+        if (ret == 0)
+        {
+            comm_payload_ack_t ack = {.acked_cmd = packet->cmd, .status = COMM_ERR_OK};
+            app_send_uart_response(app, COMM_CMD_ACK, packet->seq, &ack, sizeof(ack));
+        }
+        else
+        {
+            comm_payload_nack_t nack = {.failed_cmd = packet->cmd, .error_code = COMM_ERR_STORAGE_FAIL};
+            app_send_uart_response(app, COMM_CMD_NACK, packet->seq, &nack, sizeof(nack));
+        }
+        break;
+    }
+
+    case COMM_CMD_FACTORY_RESET:
+    {
+        int ret = channel_manager_factory_reset(app->channel_mgr);
+        if (ret == 0)
+        {
+            comm_payload_ack_t ack = {.acked_cmd = packet->cmd, .status = COMM_ERR_OK};
+            app_send_uart_response(app, COMM_CMD_ACK, packet->seq, &ack, sizeof(ack));
+        }
+        else
+        {
+            comm_payload_nack_t nack = {.failed_cmd = packet->cmd, .error_code = COMM_ERR_STORAGE_FAIL};
+            app_send_uart_response(app, COMM_CMD_NACK, packet->seq, &nack, sizeof(nack));
+        }
+        break;
+    }
+
+    case COMM_CMD_SET_OUTPUT:
+    {
+        if (packet->len < sizeof(comm_payload_set_output_t))
+        {
+            comm_payload_nack_t nack = {.failed_cmd = packet->cmd, .error_code = COMM_ERR_INVALID_PARAM};
+            app_send_uart_response(app, COMM_CMD_NACK, packet->seq, &nack, sizeof(nack));
+            break;
+        }
+
+        const comm_payload_set_output_t *cmd_out = (const comm_payload_set_output_t *)packet->payload;
+        if (!channel_hw_caps_is_mode_supported(cmd_out->channel_id, MODE_OUT_CONTROL))
+        {
+            comm_payload_nack_t nack = {.failed_cmd = packet->cmd, .error_code = COMM_ERR_UNSUPPORTED_MODE};
+            app_send_uart_response(app, COMM_CMD_NACK, packet->seq, &nack, sizeof(nack));
+            break;
+        }
+
+        bsp_dout_set(cmd_out->channel_id, cmd_out->output_state);
+        if (app->channel_mgr != NULL && cmd_out->channel_id >= 1 && cmd_out->channel_id <= CHANNEL_MAX_COUNT)
+        {
+            channel_runtime_t *ch = &app->channel_mgr->channels[cmd_out->channel_id - 1];
+            ch->last_value = (float)cmd_out->output_state;
+            ch->is_valid = true;
+        }
+
+        comm_payload_ack_t ack = {.acked_cmd = packet->cmd, .status = COMM_ERR_OK};
+        app_send_uart_response(app, COMM_CMD_ACK, packet->seq, &ack, sizeof(ack));
+        break;
+    }
+
+    case COMM_CMD_GET_OUTPUT_STATE:
+    {
+        if (packet->len < 1)
+        {
+            comm_payload_nack_t nack = {.failed_cmd = packet->cmd, .error_code = COMM_ERR_INVALID_PARAM};
+            app_send_uart_response(app, COMM_CMD_NACK, packet->seq, &nack, sizeof(nack));
+            break;
+        }
+
+        uint8_t ch_id = packet->payload[0];
+        if (!channel_hw_caps_is_mode_supported(ch_id, MODE_OUT_CONTROL))
+        {
+            comm_payload_nack_t nack = {.failed_cmd = packet->cmd, .error_code = COMM_ERR_UNSUPPORTED_MODE};
+            app_send_uart_response(app, COMM_CMD_NACK, packet->seq, &nack, sizeof(nack));
+            break;
+        }
+
+        comm_payload_output_state_t resp;
+        resp.channel_id = ch_id;
+        resp.output_state = bsp_dout_get(ch_id);
+
+        app_send_uart_response(app, COMM_CMD_RESP_OUTPUT_STATE, packet->seq, &resp, sizeof(resp));
+        break;
+    }
+
+    case COMM_CMD_GET_DYNAMIC_TELEMETRY:
+    {
+        comm_payload_dynamic_telemetry_t telem;
+        uint16_t actual_len = 0;
+        uint8_t fault_count = fault_manager_get_count(app->fault_mgr);
+
+        channel_manager_get_dynamic_telemetry(app->channel_mgr, fault_count, app->logging_enabled ? 1 : 0, &telem, &actual_len);
+        app_send_uart_response(app, COMM_CMD_RESP_DYNAMIC_TELEMETRY, packet->seq, &telem, actual_len);
+        break;
+    }
     default:
     {
         comm_payload_nack_t nack = {.failed_cmd = packet->cmd, .error_code = COMM_ERR_UNKNOWN_CMD};
@@ -197,40 +424,10 @@ static void on_button_event_received(button_id_t btn_id, button_event_t evt, voi
             }
             break;
         }
-        case BTN_ID_2: // Nhấn BTN_2: Lần 1 giả lập lỗi, Lần 2 xem chi tiết lỗi
+        case BTN_ID_2: //check những lỗi hiện có trên stm32 
         {
-            if (app->state == FSM_STATE_ERROR)
-            {
-                /* 1. Lấy danh sách các mã lỗi đang có */
-                uint16_t codes[8];
-                uint8_t count = fault_manager_get_list(app->fault_mgr, codes, 8);
 
-                /* 2. Cài đặt các biến của Diagnostic */
-                app->prev_state = app->state;
-                app->state = FSM_STATE_DIAGNOSTIC;
-                app->diagnostic_highlight = -1;
-                /* Cài đặt thời gian timeout để không bị văng ngay lập tức */
-                app->diagnostic_timeout_tick = app->state_timer + DIAGNOSTIC_AUTO_EXIT_MS;
 
-                /* 3. Vẽ ngay màn hình danh sách mã lỗi */
-                bsp_lcd_show_fault_list(codes, count, -1);
-            }
-            else
-            {
-                /* Ép sinh lỗi hở mạch 4-20mA */
-                fault_manager_set(app->fault_mgr, FAULT_4_20MA_LOOP_OPEN);
-                fault_manager_set(app->fault_mgr, FAULT_SENSOR_I2C_TIMEOUT);
-                fault_manager_set(app->fault_mgr, FAULT_AI_GATEWAY_TIMEOUT);
-
-                /* Chuyển ngay lập tức sang ERROR (không cần chờ chu kỳ 1s) */
-                app->state = FSM_STATE_ERROR;
-                app->last_screen_toggle_tick = app->state_timer;
-                app->error_toggle_phase = true;
-
-                /* Hiện ngay màn hình cảnh báo */
-                bsp_lcd_show_error_banner_toggle();
-            }
-            break;
         }
 
         case BTN_ID_3:
@@ -238,12 +435,12 @@ static void on_button_event_received(button_id_t btn_id, button_event_t evt, voi
             /* Nút 3: Bật / Tắt chế độ Logging (IDLE <-> LOGGING) */
             if (app->state == FSM_STATE_IDLE)
             {
-                data_manager_set_logging(&app->data_mgr, true, 0);
+                app->logging_enabled = true;
                 app->state = FSM_STATE_LOGGING;
             }
             else if (app->state == FSM_STATE_LOGGING)
             {
-                data_manager_set_logging(&app->data_mgr, false, 0);
+                app->logging_enabled = false;
                 app->state = FSM_STATE_IDLE;
             }
             break;
@@ -251,23 +448,8 @@ static void on_button_event_received(button_id_t btn_id, button_event_t evt, voi
 
         case BTN_ID_4:
         {
-            /* Nút 4: Thoát màn hình Diagnostic, hoặc thử Reset lỗi */
-            if (app->state == FSM_STATE_DIAGNOSTIC)
-            {
-                /* Quay lại trạng thái trước */
-                fault_severity_t sev = fault_manager_get_max_severity(app->fault_mgr);
-                app->state = (sev >= FAULT_SEV_CRITICAL) ? FSM_STATE_ERROR : FSM_STATE_IDLE;
-            }
-            else if (app->state == FSM_STATE_ERROR)
-            {
-                /* Thử kiểm tra lại nếu phần cứng đã bình thường */
-                fault_severity_t sev = fault_manager_get_max_severity(app->fault_mgr);
-                if (sev < FAULT_SEV_CRITICAL)
-                {
-                    app->state = FSM_STATE_IDLE;
-                }
-            }
-            break;
+          
+          
         }
 
         default:
@@ -293,8 +475,12 @@ void app_init(app_context_t *app, const app_dependencies_t *deps)
     app->diagnostic_highlight = -1;
     app->ai_connected = false;
 
-    /* Khởi tạo Data Manager */
-    data_manager_init(&app->data_mgr, deps->sensor_mgr);
+    /* Cấu hình Channel Manager & Logging state */
+    app->channel_mgr = deps->channel_mgr;
+    app->logging_enabled = false;
+    app->logging_interval_ms = 1000;
+    app->logged_records_count = 0;
+    app->last_ui_update_tick = 0;
 
     /* Khởi tạo Button Manager trực tiếp với driver 74HC165 */
     button_manager_init(&app->button_mgr,
@@ -335,11 +521,16 @@ void app_run_step(app_context_t *app, uint32_t current_tick_ms)
     {
         if (current_tick_ms >= BOOT_SCREEN_DURATION_MS)
         {
-            /* Hết thời gian chào -> Lấy mẫu lần đầu và chuyển sang IDLE */
-            data_manager_sample_now(&app->data_mgr);
+            /* Hết thời gian chào -> Chuyển sang IDLE và vẽ UI */
             app->state = FSM_STATE_IDLE;
+            app->last_ui_update_tick = current_tick_ms;
 
-            bsp_lcd_show_telemetry(data_manager_get_snapshot(&app->data_mgr));
+            if (app->channel_mgr != NULL)
+            {
+                channel_snapshot_t snapshot;
+                channel_manager_get_snapshot(app->channel_mgr, &snapshot);
+                bsp_lcd_show_telemetry(&snapshot);
+            }
             bsp_lcd_show_status_bar("IDLE", app->ai_connected ? "AI: OK" : "AI: --", 0);
         }
         break;
@@ -347,15 +538,15 @@ void app_run_step(app_context_t *app, uint32_t current_tick_ms)
 
     case FSM_STATE_IDLE:
     {
-        /* Lấy mẫu cảm biến định kỳ theo chu kỳ (mặc định 1s, không ghi log vào bộ nhớ) */
-        bool new_sample = data_manager_process_periodic(&app->data_mgr, current_tick_ms);
-
-        if (new_sample)
+        /* Cập nhật UI & kiểm tra sức khỏe cảm biến định kỳ mỗi logging_interval_ms (mặc định 1s) */
+        if (current_tick_ms - app->last_ui_update_tick >= app->logging_interval_ms)
         {
+            app->last_ui_update_tick = current_tick_ms;
+
             /* 1. Tự động kiểm tra sức khỏe cảm biến */
-            if (app->data_mgr.sensor_mgr != NULL)
+            if (app->channel_mgr != NULL)
             {
-                sensor_manager_check_health(app->data_mgr.sensor_mgr);
+                channel_manager_check_health(app->channel_mgr);
             }
 
             /* 2. Kiểm tra có lỗi nghiêm trọng phát sinh không */
@@ -370,7 +561,12 @@ void app_run_step(app_context_t *app, uint32_t current_tick_ms)
             }
 
             /* 3. Cập nhật giao diện Telemetry và thanh trạng thái [IDLE] */
-            bsp_lcd_show_telemetry(data_manager_get_snapshot(&app->data_mgr));
+            if (app->channel_mgr != NULL)
+            {
+                channel_snapshot_t snapshot;
+                channel_manager_get_snapshot(app->channel_mgr, &snapshot);
+                bsp_lcd_show_telemetry(&snapshot);
+            }
             uint8_t err_count = fault_manager_get_count(app->fault_mgr);
             bsp_lcd_show_status_bar("IDLE", app->ai_connected ? "AI: OK" : "AI: --", err_count);
         }
@@ -379,15 +575,21 @@ void app_run_step(app_context_t *app, uint32_t current_tick_ms)
 
     case FSM_STATE_LOGGING:
     {
-        /* Lấy mẫu cảm biến định kỳ theo chu kỳ (mặc định 1s) */
-        bool new_sample = data_manager_process_periodic(&app->data_mgr, current_tick_ms);
-
-        if (new_sample)
+        /* Chu kỳ cập nhật logging & UI */
+        if (current_tick_ms - app->last_ui_update_tick >= app->logging_interval_ms)
         {
-            /* Tự động kiểm tra sức khỏe cảm biến */
-            if (app->data_mgr.sensor_mgr != NULL)
+            app->last_ui_update_tick = current_tick_ms;
+
+            /* Tăng đếm bản ghi nếu logging đang bật */
+            if (app->logging_enabled)
             {
-                sensor_manager_check_health(app->data_mgr.sensor_mgr);
+                app->logged_records_count++;
+            }
+
+            /* Tự động kiểm tra sức khỏe cảm biến */
+            if (app->channel_mgr != NULL)
+            {
+                channel_manager_check_health(app->channel_mgr);
             }
 
             /* Kiểm tra có lỗi nghiêm trọng phát sinh không */
@@ -402,7 +604,12 @@ void app_run_step(app_context_t *app, uint32_t current_tick_ms)
             }
 
             /* Cập nhật giao diện Telemetry bình thường */
-            bsp_lcd_show_telemetry(data_manager_get_snapshot(&app->data_mgr));
+            if (app->channel_mgr != NULL)
+            {
+                channel_snapshot_t snapshot;
+                channel_manager_get_snapshot(app->channel_mgr, &snapshot);
+                bsp_lcd_show_telemetry(&snapshot);
+            }
             uint8_t err_count = fault_manager_get_count(app->fault_mgr);
             bsp_lcd_show_status_bar("LOGGING", app->ai_connected ? "AI: OK" : "AI: --", err_count);
         }
@@ -411,8 +618,15 @@ void app_run_step(app_context_t *app, uint32_t current_tick_ms)
 
     case FSM_STATE_ERROR:
     {
-        /* Vẫn lấy mẫu để cập nhật số liệu */
-        data_manager_process_periodic(&app->data_mgr, current_tick_ms);
+        /* Kiểm tra định kỳ xem lỗi đã hết chưa */
+        if (current_tick_ms - app->last_ui_update_tick >= app->logging_interval_ms)
+        {
+            app->last_ui_update_tick = current_tick_ms;
+            if (app->channel_mgr != NULL)
+            {
+                channel_manager_check_health(app->channel_mgr);
+            }
+        }
 
         /* Kiểm tra xem lỗi đã hết chưa */
         fault_severity_t max_sev = fault_manager_get_max_severity(app->fault_mgr);
@@ -436,7 +650,12 @@ void app_run_step(app_context_t *app, uint32_t current_tick_ms)
             }
             else
             {
-                bsp_lcd_show_telemetry(data_manager_get_snapshot(&app->data_mgr));
+                if (app->channel_mgr != NULL)
+                {
+                    channel_snapshot_t snapshot;
+                    channel_manager_get_snapshot(app->channel_mgr, &snapshot);
+                    bsp_lcd_show_telemetry(&snapshot);
+                }
                 uint8_t count = fault_manager_get_count(app->fault_mgr);
                 bsp_lcd_show_status_bar("ERROR", app->ai_connected ? "AI: OK" : "AI: --", count);
             }
@@ -446,8 +665,15 @@ void app_run_step(app_context_t *app, uint32_t current_tick_ms)
 
     case FSM_STATE_DIAGNOSTIC:
     {
-        /* Vẫn duy trì lấy mẫu ngầm */
-        data_manager_process_periodic(&app->data_mgr, current_tick_ms);
+        /* Định kỳ kiểm tra sức khỏe cảm biến */
+        if (current_tick_ms - app->last_ui_update_tick >= app->logging_interval_ms)
+        {
+            app->last_ui_update_tick = current_tick_ms;
+            if (app->channel_mgr != NULL)
+            {
+                channel_manager_check_health(app->channel_mgr);
+            }
+        }
 
         /* Hết thời gian chờ (15s) -> Tự động quay về màn hình trước */
         if (current_tick_ms >= app->diagnostic_timeout_tick)

@@ -8,7 +8,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "data_manager.h"
+#include "channel_manager.h"
 #include "fault_manager.h"
 #include "com_protocol.h"
 #include "button_manager.h"
@@ -34,9 +34,9 @@ typedef enum {
 /* ========================================================================= */
 
 typedef struct {
-    sensor_manager_t *sensor_mgr;
-    fault_manager_t  *fault_mgr;
-    uint8_t           button_count;
+    channel_manager_t *channel_mgr;
+    fault_manager_t   *fault_mgr;
+    uint8_t            button_count;
 } app_dependencies_t;
 
 /* ========================================================================= */
@@ -44,12 +44,18 @@ typedef struct {
 /* ========================================================================= */
 
 typedef struct {
-    fsm_state_t       state;
-    fsm_state_t       prev_state;       /**< Lưu trạng thái trước khi vào Diagnostic */
-    data_manager_t    data_mgr;
-    fault_manager_t  *fault_mgr;
-    button_manager_t  button_mgr;
-    comm_parser_t     uart_parser;
+    fsm_state_t        state;
+    fsm_state_t        prev_state;          /**< Lưu trạng thái trước khi vào Diagnostic */
+    channel_manager_t *channel_mgr;         /**< Quản lý kênh và lấy mẫu độc lập */
+    fault_manager_t   *fault_mgr;
+    button_manager_t   button_mgr;
+    comm_parser_t      uart_parser;
+
+    /* Trạng thái ghi dữ liệu (Logging) */
+    bool               logging_enabled;     /**< true: Đang ghi log, false: Dừng */
+    uint16_t           logging_interval_ms; /**< Chu kỳ cập nhật UI / ghi log */
+    uint32_t           logged_records_count;/**< Số bản ghi */
+    uint32_t           last_ui_update_tick; /**< Mốc thời gian cập nhật LCD gần nhất */
 
     /* Các bộ đếm thời gian non-blocking */
     uint32_t          state_timer;

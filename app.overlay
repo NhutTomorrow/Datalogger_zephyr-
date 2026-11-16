@@ -26,13 +26,29 @@
             label = "FSMC_RES";
         };
     };
+
+    rs485_ctrl {
+        compatible = "gpio-leds";
+        rs485_de: rs485_de {
+            gpios = <&gpioa 15 GPIO_ACTIVE_HIGH>;
+            label = "RS485_DE";
+        };
+    };
 };
 
-/* Cấu hình UART3 kết nối ESP32 Gateway */
-&usart3 {
-    pinctrl-0 = <&usart3_tx_pb10 &usart3_rx_pb11>;
+/* Cấu hình UART6 kết nối ESP32 Gateway (PC6/PC7) */
+&usart6 {
+    pinctrl-0 = <&usart6_tx_pc6 &usart6_rx_pc7>;
     pinctrl-names = "default";
     current-speed = <115200>;
+    status = "okay";
+};
+
+/* Cấu hình USART3 cho RS485 (PC10/PC11) */
+&usart3 {
+    pinctrl-0 = <&usart3_tx_pc10 &usart3_rx_pc11>;
+    pinctrl-names = "default";
+    current-speed = <9600>; /* Tốc độ phổ biến của cảm biến RS485 */
     status = "okay";
 };
 
@@ -56,4 +72,24 @@
             reg = <0x000e0000 0x00020000>;
         };
     };
+};
+
+
+/* Cấu hình ADC1 và ánh xạ 7 chân Analog */
+&adc1 {
+    pinctrl-0 = <
+        &adc1_in12_pc2  /* CH1 - LM35 (PC2) */
+        &adc1_in10_pc0  /* CH2 - LDR (PC0) */
+        &adc1_in8_pb0   /* CH3 - Power Divider (PB0) */
+        &adc1_in9_pb1   /* CH4 - ACS712 (PB1) */
+        &adc1_in11_pc1  /* CH5 - VR1 (PC1) */
+        &adc1_in4_pa4   /* CH6 - Header P11-3 (PA4) */
+        &adc1_in5_pa5   /* CH7 - Header P11-1 (PA5) */
+    >;
+    pinctrl-names = "default";
+    status = "okay";
+};
+
+&i2s3 {
+    status = "disabled";
 };

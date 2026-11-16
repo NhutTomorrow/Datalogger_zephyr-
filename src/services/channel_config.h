@@ -3,11 +3,25 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "sensor_manager.h" /* Tái sử dụng enum sensor_unit_t */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* ========================================================================= */
+/* ĐƠN VỊ ĐO LƯỜNG (ENGINEERING UNITS)                                       */
+/* ========================================================================= */
+
+typedef enum {
+    UNIT_CELSIUS = 0,       /**< °C (Nhiệt độ) */
+    UNIT_PERCENT_RH,        /**< %RH (Độ ẩm) */
+    UNIT_MILLIAMP,          /**< mA (Dòng công nghiệp 4-20mA) */
+    UNIT_VOLT,              /**< V (Điện áp DC) */
+    UNIT_PH,                /**< pH (Độ kiềm/axit) */
+    UNIT_BAR,               /**< Bar (Áp suất) */
+    UNIT_PPM,               /**< ppm (Nồng độ khí CO2/chất hòa tan) */
+    UNIT_RAW                /**< Giá trị thô / không đơn vị */
+} sensor_unit_t;
 
 /* ========================================================================= */
 /* HẰNG SỐ HỆ THỐNG                                                          */
@@ -28,7 +42,7 @@ typedef enum {
     MODE_ADC_SINGLE     = 1,  /**< Đọc Analog đơn (0-3.3V hoặc qua Op-amp) */
     MODE_DIGITAL_IN     = 2,  /**< Đọc ngõ vào số logic (Opto cách ly) */
     MODE_PULSE_COUNTER  = 3,  /**< Đếm xung tốc độ cao (HCPL-0630) */
-    MODE_OUTPUT         = 4,  /**< Điều khiển ngõ ra (MOSFET Open-Drain / Relay) */
+    MODE_OUT_CONTROL        = 4,  /**< Điều khiển ngõ ra (MOSFET Open-Drain / Relay) */
     MODE_I2C            = 5,  /**< Cảm biến giao tiếp bus I2C */
     MODE_RS485          = 6,  /**< Cảm biến / Thiết bị Modbus RTU qua RS485 */
     MODE_RS232          = 7,  /**< Giao tiếp RS232 chuẩn công nghiệp */
