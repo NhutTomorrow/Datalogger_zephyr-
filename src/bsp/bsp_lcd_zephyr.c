@@ -272,7 +272,7 @@ void lcd_draw_rectangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2,
 
 void lcd_show_char(uint16_t x, uint16_t y, uint8_t character, uint16_t fc,
 		uint16_t bc, uint8_t sizey, uint8_t mode) {
-	uint8_t temp, sizex, t, m = 0;
+	uint8_t temp = 0, sizex, t, m = 0;
 	uint16_t i, TypefaceNum;
 	uint16_t x0 = x;
 	sizex = sizey / 2;
@@ -649,7 +649,7 @@ void bsp_lcd_show_telemetry(const sensor_telemetry_snapshot_t *snapshot) {
     //bsp_lcd_debug_show_button(-1, 0, 0);
 
     /* Vẽ lại khung Debug UART Log từ ESP32 */
-    bsp_lcd_draw_uart_log_box();
+    //bsp_lcd_draw_uart_log_box();
 }
 /**
  * @brief 3. Hiển thị hộp cảnh báo khi có sự cố / mã lỗi
@@ -849,5 +849,259 @@ void bsp_lcd_draw_uart_log_box(void) {
              (unsigned long)g_uart_rx_packets, (unsigned long)g_uart_rx_bytes);
     lcd_show_string(14, box_y + 46, line3, WHITE, bg_color, 16, 0);
 }
+
+void bsp_lcd_show_auth_screen(const char *input_str, char preview_char, bool masked)
+{
+    /* Tiêu đề */
+    lcd_fill(0, 0, lcddev.width, 30, DARKBLUE);
+    lcd_show_string(20, 6, "XAC THUC DANG NHAP", WHITE, DARKBLUE, 16, 0);
+
+    /* Vùng thân hộp thoại */
+    lcd_fill(0, 30, lcddev.width, lcddev.height - 30, BLACK);
+    lcd_show_string(30, 60, "Nhap ma PIN / Password:", WHITE, BLACK, 16, 0);
+
+    /* Hộp nhập mật khẩu */
+    uint16_t box_x = 30;
+    uint16_t box_y = 90;
+    uint16_t box_w = lcddev.width - 60;
+    uint16_t box_h = 36;
+    lcd_draw_rectangle(box_x, box_y, box_x + box_w, box_y + box_h, CYAN);
+    lcd_fill(box_x + 1, box_y + 1, box_x + box_w - 1, box_y + box_h - 1, LGRAY);
+
+    /* Format hiển thị chuỗi */
+    char display_buf[32] = {0};
+    uint8_t len = input_str ? (uint8_t)strlen(input_str) : 0;
+    if (len > 24) len = 24;
+
+    for (uint8_t i = 0; i < len; i++) {
+        display_buf[i] = masked ? '*' : input_str[i];
+    }
+    if (preview_char != '\0' && len < 24) {
+        display_buf[len] = preview_char;
+        display_buf[len + 1] = '\0';
+    } else {
+        display_buf[len] = '\0';
+    }
+
+    lcd_show_string(box_x + 10, box_y + 8, display_buf, BLACK, LGRAY, 24, 0);
+
+    /* Gợi ý phím thao tác */
+    lcd_show_string(20, 150, "1..9, 0: Nhap ky tu", GRAY, BLACK, 16, 0);
+    lcd_show_string(20, 175, "*: Doi Mode | #: +/-", GRAY, BLACK, 16, 0);
+    lcd_show_string(20, 200, "BACK: Xoa | ENTER: Chot", YELLOW, BLACK, 16, 0);
+}
+
+void bsp_lcd_show_menu(const char *title, const char *items[], uint8_t count, uint8_t selected_idx)
+{
+    /* Tiêu đề Menu */
+    lcd_fill(0, 0, lcddev.width, 30, DARKBLUE);
+    lcd_show_string(20, 6, (char *)(title ? title : "MENU HE THONG"), WHITE, DARKBLUE, 16, 0);
+
+    /* Xóa vùng danh sách */
+    lcd_fill(0, 30, lcddev.width, lcddev.height - 30, BLACK);
+
+    uint16_t start_y = 40;
+    for (uint8_t i = 0; i < count; i++) {
+        uint16_t row_y = start_y + (i * 26);
+        if (row_y + 24 > lcddev.height - 30) break;
+
+        bool is_selected = (i == selected_idx);
+        uint16_t bg = is_selected ? DARKBLUE : BLACK;
+        uint16_t fg = is_selected ? YELLOW : WHITE;
+
+        lcd_fill(10, row_y, lcddev.width - 20, 24, bg);
+
+        char item_buf[40];
+        snprintf(item_buf, sizeof(item_buf), "%s %d. %s",
+                 is_selected ? ">>" : "  ",
+                 i + 1,
+                 items[i] ? items[i] : "");
+        lcd_show_string(15, row_y + 4, item_buf, fg, bg, 16, 0);
+    }
+
+    /* Thanh trạng thái điều hướng */
+    uint16_t bar_y = lcddev.height - 24;
+    lcd_fill(0, bar_y, lcddev.width, 24, GRAY);
+    lcd_show_string(10, bar_y + 4, "UP/DOWN: Chon | ENTER: Vao | BACK: Ra", BLACK, GRAY, 16, 0);
+}
+
+void bsp_lcd_show_dashboard_paged(const sensor_telemetry_snapshot_t *snapshot,
+                                  uint8_t page,
+                                  bool logging_active,
+                                  const char *ai_str,
+                                  uint8_t fault_count)
+{
+    /* 1. Header */
+    lcd_fill(0, 0, lcddev.width, 28, DARKBLUE);
+    char header_buf[48];
+    uint8_t total_pages = 1;
+    if (snapshot != NULL && snapshot->total_channels > 0) {
+        total_pages = (snapshot->total_channels + 3) / 4;
+    }
+    snprintf(header_buf, sizeof(header_buf), "DATALOGGER [%s] P%u/%u",
+             logging_active ? "REC" : "STOP", page + 1, total_pages);
+    lcd_show_string(10, 6, header_buf, logging_active ? GREEN : YELLOW, DARKBLUE, 16, 0);
+
+    /* 2. Thân hiển thị 4 kênh đo */
+    lcd_fill(0, 28, lcddev.width, lcddev.height - 28, BLACK);
+
+    uint8_t start_ch = page * 4;
+    uint16_t start_y = 36;
+
+    if (snapshot != NULL) {
+        for (uint8_t i = 0; i < 4; i++) {
+            uint8_t ch_idx = start_ch + i;
+            if (ch_idx >= snapshot->total_channels) break;
+
+            const sensor_channel_t *ch = &snapshot->channels[ch_idx];
+            uint16_t row_y = start_y + (i * 38);
+            if (row_y + 34 > lcddev.height - 26) break;
+
+            uint16_t bg = ch->is_valid ? BLACK : RED;
+            uint16_t border = ch->is_valid ? GRAY : YELLOW;
+            lcd_fill(8, row_y, lcddev.width - 9, row_y + 34, bg);
+            lcd_draw_rectangle(8, row_y, lcddev.width - 9, row_y + 34, border);
+
+            char line1[36], line2[36];
+            snprintf(line1, sizeof(line1), "CH_%u: %-12s", ch->channel_id, ch->name);
+            lcd_show_string(14, row_y + 4, line1, WHITE, bg, 16, 0);
+
+            if (ch->is_valid) {
+                snprintf(line2, sizeof(line2), "VAL: %6.2f %s", ch->value, sensor_unit_to_str(ch->unit));
+                lcd_show_string(14, row_y + 18, line2, GREEN, bg, 16, 0);
+            } else {
+                snprintf(line2, sizeof(line2), "FAULT: [0x%04X]", ch->fault_code);
+                lcd_show_string(14, row_y + 18, line2, YELLOW, bg, 16, 0);
+            }
+        }
+    }
+
+    /* 3. Thanh trạng thái đáy */
+    uint16_t bar_y = lcddev.height - 24;
+    uint16_t bar_bg = (fault_count > 0) ? RED : DARKBLUE;
+    lcd_fill(0, bar_y, lcddev.width, 24, bar_bg);
+    char status_buf[64];
+    snprintf(status_buf, sizeof(status_buf), "%s | ERR:%u | UP/DN:Trang | E:Menu",
+             ai_str ? ai_str : "AI:--", fault_count);
+    lcd_show_string(8, bar_y + 4, status_buf, WHITE, bar_bg, 16, 0);
+}
+
+void bsp_lcd_show_edit_enum(const char *param_name, const char *option_str, uint8_t idx, uint8_t total)
+{
+    /* Header */
+    lcd_fill(0, 0, lcddev.width, 28, DARKBLUE);
+    lcd_show_string(10, 6, "CHINH SUA TU CHON", WHITE, DARKBLUE, 16, 0);
+
+    /* Thân */
+    lcd_fill(0, 28, lcddev.width, lcddev.height - 28, BLACK);
+
+    char name_buf[48];
+    snprintf(name_buf, sizeof(name_buf), "Tham so: %s", param_name ? param_name : "");
+    lcd_show_string(20, 50, name_buf, WHITE, BLACK, 16, 0);
+
+    /* Hộp hiển thị lựa chọn */
+    uint16_t box_y = 85;
+    lcd_draw_rectangle(20, box_y, lcddev.width - 20, box_y + 40, CYAN);
+    lcd_fill(21, box_y + 1, lcddev.width - 21, box_y + 39, DARKBLUE);
+
+    char opt_buf[48];
+    snprintf(opt_buf, sizeof(opt_buf), "<  %s  >", option_str ? option_str : "");
+    lcd_show_string(30, box_y + 12, opt_buf, YELLOW, DARKBLUE, 24, 0);
+
+    char count_buf[32];
+    snprintf(count_buf, sizeof(count_buf), "(Lua chon %u/%u)", idx + 1, total);
+    lcd_show_string(30, 140, count_buf, GRAY, BLACK, 16, 0);
+
+    /* Hint */
+    uint16_t bar_y = lcddev.height - 24;
+    lcd_fill(0, bar_y, lcddev.width, 24, GRAY);
+    lcd_show_string(10, bar_y + 4, "UP/DOWN: Chon | ENTER: Luu | BACK: Huy", BLACK, GRAY, 16, 0);
+}
+
+void bsp_lcd_show_edit_numeric(const char *param_name, const char *val_str, const char *unit_str)
+{
+    /* Header */
+    lcd_fill(0, 0, lcddev.width, 28, DARKBLUE);
+    lcd_show_string(10, 6, "CHINH SUA SO LIEU", WHITE, DARKBLUE, 16, 0);
+
+    /* Thân */
+    lcd_fill(0, 28, lcddev.width, lcddev.height - 28, BLACK);
+
+    char name_buf[48];
+    snprintf(name_buf, sizeof(name_buf), "Tham so: %s", param_name ? param_name : "");
+    lcd_show_string(20, 50, name_buf, WHITE, BLACK, 16, 0);
+
+    /* Hộp nhập số */
+    uint16_t box_y = 85;
+    lcd_draw_rectangle(20, box_y, lcddev.width - 20, box_y + 40, GREEN);
+    lcd_fill(21, box_y + 1, lcddev.width - 21, box_y + 39, LGRAY);
+
+    char val_buf[48];
+    snprintf(val_buf, sizeof(val_buf), "%s %s", val_str ? val_str : "", unit_str ? unit_str : "");
+    lcd_show_string(30, box_y + 10, val_buf, BLACK, LGRAY, 24, 0);
+
+    /* Hướng dẫn phím */
+    lcd_show_string(20, 140, "Phim 0..9: Nhap so", GRAY, BLACK, 16, 0);
+    lcd_show_string(20, 160, "*: Dau cham . | #: Dau +/-", GRAY, BLACK, 16, 0);
+
+    /* Hint */
+    uint16_t bar_y = lcddev.height - 24;
+    lcd_fill(0, bar_y, lcddev.width, 24, GRAY);
+    lcd_show_string(10, bar_y + 4, "BACK: Xoa | ENTER: Xac nhan", BLACK, GRAY, 16, 0);
+}
+
+void bsp_lcd_show_save_confirm(void)
+{
+    /* Header */
+    lcd_fill(0, 0, lcddev.width, 28, DARKBLUE);
+    lcd_show_string(10, 6, "XAC NHAN LUU CAU HINH", WHITE, DARKBLUE, 16, 0);
+
+    /* Thân */
+    lcd_fill(0, 28, lcddev.width, lcddev.height - 28, BLACK);
+
+    lcd_show_string(30, 60, "Co thay doi cau hinh!", YELLOW, BLACK, 16, 0);
+    lcd_show_string(30, 85, "Luu vao Flash (Rolling Slot)?", WHITE, BLACK, 16, 0);
+
+    /* Nút chọn */
+    lcd_fill(30, 130, lcddev.width - 30, 165, DARKBLUE);
+    lcd_draw_rectangle(30, 130, lcddev.width - 30, 165, GREEN);
+    lcd_show_string(45, 140, "[ENTER] : DONG Y LUU", GREEN, DARKBLUE, 16, 0);
+
+    lcd_fill(30, 180, lcddev.width - 30, 215, DARKBLUE);
+    lcd_draw_rectangle(30, 180, lcddev.width - 30, 215, RED);
+    lcd_show_string(45, 190, "[BACK]  : HUY BO THAY DOI", RED, DARKBLUE, 16, 0);
+}
+
+void bsp_lcd_show_ai_proposal(uint8_t ch_id, const char *mode_str, const char *metric_str)
+{
+    /* Header */
+    lcd_fill(0, 0, lcddev.width, 28, DARKBLUE);
+    lcd_show_string(10, 6, "AI CONFIG PROPOSAL", YELLOW, DARKBLUE, 16, 0);
+
+    /* Body */
+    lcd_fill(0, 28, lcddev.width, lcddev.height - 28, BLACK);
+
+    char buf[40];
+    snprintf(buf, sizeof(buf), "AI de xuat cau hinh CH_%02u:", ch_id);
+    lcd_show_string(20, 50, buf, CYAN, BLACK, 16, 0);
+
+    snprintf(buf, sizeof(buf), "Mode  : %s", mode_str ? mode_str : "UNKNOWN");
+    lcd_show_string(30, 80, buf, WHITE, BLACK, 16, 0);
+
+    snprintf(buf, sizeof(buf), "Metric: %s", metric_str ? metric_str : "UNKNOWN");
+    lcd_show_string(30, 105, buf, WHITE, BLACK, 16, 0);
+
+    /* Decision boxes */
+    lcd_fill(20, 140, lcddev.width - 20, 175, DARKBLUE);
+    lcd_draw_rectangle(20, 140, lcddev.width - 20, 175, GREEN);
+    lcd_show_string(35, 150, "[ENTER] : DONG Y AP DUNG", GREEN, DARKBLUE, 16, 0);
+
+    lcd_fill(20, 190, lcddev.width - 20, 225, DARKBLUE);
+    lcd_draw_rectangle(20, 190, lcddev.width - 20, 225, RED);
+    lcd_show_string(35, 200, "[BACK]  : TU CHOI / CANCEL", RED, DARKBLUE, 16, 0);
+}
+
+
+
 
 

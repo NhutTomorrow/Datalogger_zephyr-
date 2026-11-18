@@ -20,6 +20,7 @@ target_sources(app PRIVATE
     src/services/com_protocol.c
     src/services/fault_manager.c
     src/services/button_manager.c
+    src/services/keypad_multitap.c
     src/services/channel_config.c
     src/services/channel_hw_caps.c
     src/services/channel_manager.c

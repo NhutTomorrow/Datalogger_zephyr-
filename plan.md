@@ -24,12 +24,56 @@ Tài liệu theo dõi tổng quan các hạng mục còn thiếu cần hoàn thi
 ## 2. Hoàn thiện FSM & Hệ thống Menu Thao tác tay (Button UI)
 > **Hiện trạng**: FSM mới chỉ có INIT, IDLE, LOGGING, ERROR, DIAGNOSTIC; thiếu menu tương tác vật lý. Dù có AI vẫn cần luồng thao tác tay và xác nhận an toàn tại chỗ.
 
-- [ ] **2.1. Popup Xác nhận Cấu hình AI (AI Proposal Confirmation)**:
+- [x] **2.1. Popup Xác nhận Cấu hình AI (AI Proposal Confirmation)**:
   - Khi AI gửi lệnh thay đổi cấu hình qua UART6 $\longrightarrow$ Màn hình hiện Popup thông báo: *"AI muốn đổi CH_xx sang [Mode/Sensor]. Đồng ý?"*.
-  - Người dùng bấm nút cứng: **OK (Đồng ý áp dụng)** hoặc **CANCEL (Hủy bỏ/Giữ nguyên)**.
-- [ ] **2.2. Menu Cấu hình Thủ công bằng Nút bấm**:
-  - Thiết kế state `FSM_STATE_MENU` điều hướng bằng 16 nút (quét qua 74HC165).
-  - Cho phép người dùng trực tiếp: Xem danh sách kênh, Bật/Tắt kênh thủ công, Đổi chu kỳ lấy mẫu mà không cần kết nối máy tính.
+  - Người dùng bấm nút cứng: **OK (Đồng ý áp dụng)** hoặc **CANCEL (Hủy bỏ/Giữ nguyên)**. Timeout 60s tự hủy và báo `COMM_ERR_TIMEOUT`.
+- [x] **2.2. Khung sườn FSM Phân tầng & Động cơ Multi-tap 16 nút**:
+  - Đã tích hợp bàn phím Multi-tap ITU E.161 qua 74HC165 (Numeric Zero-latency, Text mode 700ms timeout commit, Navigation mode).
+  - Đã xây dựng khung điều phối FSM: `INIT`, `HOME_DASHBOARD`, `AUTH_LOGIN`, `MAIN_MENU`, `SUBMENU_LIST`, `EDIT_ENUM`, `EDIT_NUMERIC`, `SAVE_CONFIRM`, `ALARM_POPUP`, `DIAGNOSTICS_LIVE`, `SCREENSAVER_SLEEP`.
+  - Cơ chế bảo vệ toàn cục: Inactivity Timeout 60s tự thoát về Dashboard, Screensaver 5 phút tắt đèn nền LCD, Dirty Flag rendering.
+
+- [ ] **2.3. Danh mục Hoàn thiện Chi tiết FSM & Vá Lỗi Kiến trúc (Pending Backlog)**:
+  - [ ] **2.3.1. Quy trình POST tại `FSM_STATE_INIT`**:
+    - Chạy Power-On Self-Test kiểm tra phần cứng lúc khởi động: Flash NVS (Sector 11), RTC DS1307/STM32, thẻ nhớ microSD (SPI/SDIO), UART ESP32.
+    - Hiển thị trạng thái kiểm tra dạng checklist (OK / FAIL). Chuyển sang trạng thái dừng khẩn cấp (`FATAL_INIT_ERROR`) nếu hỏng Flash/phần cứng cốt lõi thay vì tự động nhảy vào Dashboard.
+  - [ ] **2.3.2. Màn hình phụ System Telemetry tại `FSM_HOME_DASHBOARD`**:
+    - Màn hình phụ hiển thị trạng thái trạm: Điện áp nguồn 24V, dung lượng thẻ nhớ SD còn trống, số lượng bản ghi chưa đẩy lên server.
+    - Gán phím chuyển đổi nhanh giữa *Sensor Telemetry View* và *System Telemetry View* (sử dụng phím `*` hoặc `#`).
+  - [ ] **2.3.3. Siết chặt bảo mật mã PIN tại `FSM_AUTH_LOGIN`**:
+    - Quản lý mã PIN động lưu trong Flash (thay vì kiểm tra lỏng `strlen >= 4` như hiện tại).
+    - Bộ đếm số lần nhập sai (`failed_attempts`): Khóa phím tạm thời (Lockout 30s) hoặc tự động đẩy về `HOME_DASHBOARD` khi nhập sai quá 3 lần để chống brute-force.
+    - Tích hợp giao diện "Đổi mã PIN" trong Menu SysteVm.
+  - [ ] **2.3.4. Cơ chế Cửa sổ trượt (Sliding Viewport) cho Menu List**:
+    - Giải quyết lỗi tràn màn hình (Viewport Overflow) khi danh sách $\ge 8$ mục (mở rộng danh sách đủ 18 kênh vật lý).
+    - Thêm biến `viewport_start_idx` và tính toán cuộn động (Sliding Window 6 dòng) để con trỏ không bị biến mất khỏi LCD.
+  - [ ] **2.3.5. Kết nối toàn diện các Submenu & Edit Targets còn trống**:
+    - `SUBMENU_CLOUD_UPLINK`: Nối luồng chọn Giao thức (`MQTT`/`HTTP`/`WEBSOCKET`), nhập Broker Host/IP, Port, Chu kỳ Uplink.
+    - `SUBMENU_ALARM_THRESHOLD`: Nối luồng cài đặt ngưỡng cảnh báo cao/thấp (`alarm_high`, `alarm_low`), bật/tắt phát hiện đứt vòng 4-20mA.
+    - `SUBMENU_SYSTEM_RTC`: Nối luồng Đổi mã PIN, cài đặt thời gian chờ tắt đèn nền (Screensaver Timeout: 1m, 5m, 10m, Always ON).
+    - `SUBMENU_COMMUNICATION`: Nối luồng chọn Baudrate UART ESP32.
+    - Hỗ trợ nhập số thực có dấu âm/dương (`+/-` qua phím `#`) và dấu chấm (`.` qua phím `*`) trong `EDIT_NUMERIC`.
+  - [ ] **2.3.6. Vá lỗi kiến trúc: Rollback Desync Bug tại `FSM_STATE_SAVE_CONFIRM`**:
+    - Hiện trạng: Khi chỉnh sửa trong `EDIT_ENUM`/`EDIT_NUMERIC`, hàm `channel_manager_configure()` cập nhật trực tiếp vào RAM. Khi người dùng bấm `[BACK]` (Hủy bỏ) ở `SAVE_CONFIRM`, hệ thống chỉ đặt `config_dirty = false` mà không khôi phục RAM $\longrightarrow$ RAM bị lệch pha với Flash.
+    - Giải pháp: Thực hiện cơ chế Staging an toàn (chỉ commit RAM khi xác nhận lưu) hoặc gọi `channel_manager_restore_from_flash()` khi người dùng bấm Hủy bỏ.
+  - [ ] **2.3.7. Vá lỗi kiến trúc: Alarm Popup Trap Loop tại `FSM_STATE_ALARM_POPUP`**:
+    - Hiện trạng: Kích hoạt Popup đang theo mức (Level-triggered). Khi có lỗi phần cứng liên tục (`max_sev >= FAULT_SEV_CRITICAL`), người dùng bấm ACK thoát ra Dashboard thì đúng 1 giây sau FSM lại tự động nhảy vào Popup $\longrightarrow$ Kẹt vĩnh viễn không thể vào menu.
+    - Giải pháp: Chuyển sang kích hoạt theo sườn (Edge-triggered) kèm cờ `alarm_acknowledged`, dải trễ Hysteresis và Snooze Timer. Chỉ bật lại Popup khi có mã lỗi mới xuất hiện.
+  - [ ] **2.3.8. Màn hình Chẩn đoán chuyên sâu tại `FSM_STATE_DIAGNOSTICS_LIVE`**:
+    - Hiển thị trực tiếp giá trị thô (**Raw ADC mV**, **Raw Modbus Register Hex**) song song với giá trị vật lý đã calib để kỹ sư đối soát phần cứng tại chỗ.
+  - [ ] **2.3.9. Tích hợp Ngoại vi Còi Buzzer & Đèn Báo**:
+    - Kích hoạt còi Buzzer kêu ngắt quãng khi FSM vào `ALARM_POPUP`. Tắt còi ngay khi người dùng bấm phím ACK (ENTER/BACK).
+
+Cấu trúc bàn phím:
+Cột 1 (BTN 1, 5, 9, 13): [1 . , ?], [4 ghi], [7 pqrs], [* Shift / .]
+
+  
+Cột 2 (BTN 2, 6, 10, 14): [2 abc], [5 jkl], [8 tuv], [0 Space]
+
+  
+Cột 3 (BTN 3, 7, 11, 15): [3 def], [6 mno], [9 wxyz], [# Symbol / +/-]
+
+  
+Cột 4 (BTN 4, 8, 12, 16): [UP], [DOWN], [BACK / DEL], [ENTER / OK]
 
 Datalogger behavior:
 FSM_STATE_INIT: 
@@ -152,6 +196,6 @@ Cơ chế Dirty Flag (Cờ báo bẩn màn hình): Không vẽ lại toàn bộ 
 | Hạng mục | Mức độ ưu tiên | Trạng thái | Ghi chú |
 | :--- | :---: | :---: | :--- |
 | **1. Flash Persistence (Rolling Slot)** | **P0 (Khẩn cấp)** | 🟢 Hoàn thành | Bền 2.2 triệu lần ghi, tự nạp driver sau reboot |
-| **2. FSM Menu Nút bấm & Popup AI** | **P1 (Quan trọng)** | 🟡 Đang nghiên cứu | Thao tác tay song song với AI |
+| **2. FSM Menu Nút bấm & Popup AI** | **P1 (Quan trọng)** | 🟡 Hoàn thiện Backlog & Vá lỗi | Xong khung FSM + Keypad + Popup AI; đang hoàn thiện Submenus, Viewport & 2 lỗi kiến trúc |
 | **3. Fault Detection & Auto-Healing** | **P1 (Quan trọng)** | 🟡 Đang nghiên cứu | Phân loại lỗi phần cứng vs cảm biến |
 | **4. Ghi Log thẻ microSD** | **P2 (Tính năng)** | 🔴 Chưa bắt đầu | Lưu trữ dữ liệu lịch sử dài hạn |

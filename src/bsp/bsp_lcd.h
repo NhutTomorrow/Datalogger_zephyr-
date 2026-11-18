@@ -103,5 +103,12 @@ void bsp_lcd_update_uart_packet_log(uint8_t cmd, uint8_t seq, uint16_t len);
 void bsp_lcd_on_uart_byte_received(uint8_t byte);
 void bsp_lcd_log_uart_string(const char *msg);
 void bsp_lcd_draw_uart_log_box(void);
+void bsp_lcd_show_auth_screen(const char *input_str, char preview_char, bool masked);
+void bsp_lcd_show_menu(const char *title, const char *items[], uint8_t count, uint8_t selected_idx);
+void bsp_lcd_show_dashboard_paged(const sensor_telemetry_snapshot_t *snapshot, uint8_t page, bool logging_active, const char *ai_str, uint8_t fault_count);
+void bsp_lcd_show_edit_enum(const char *param_name, const char *option_str, uint8_t idx, uint8_t total);
+void bsp_lcd_show_edit_numeric(const char *param_name, const char *val_str, const char *unit_str);
+void bsp_lcd_show_save_confirm(void);
+void bsp_lcd_show_ai_proposal(uint8_t ch_id, const char *mode_str, const char *metric_str);
 
 #endif /* BSP_LCD_H_ */

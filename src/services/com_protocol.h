@@ -62,6 +62,8 @@ typedef enum
     COMM_CMD_DISABLE_CHANNEL      = 0x11, /**< ESP32 -> STM32: Vô hiệu hóa 1 kênh (Payload: 1B channel_id) */
     COMM_CMD_GET_CHANNEL_CONFIG   = 0x12, /**< ESP32 -> STM32: Đọc cấu hình 1 kênh (Payload: 1B channel_id) */
     COMM_CMD_RESP_CHANNEL_CONFIG  = 0x92, /**< STM32 -> ESP32: Trả cấu hình 1 kênh (Payload: ChannelConfig_t) */
+    COMM_CMD_CONFIG_PROPOSAL      = 0x13, /**< ESP32/AI -> STM32: Đề xuất cấu hình kênh cần xác nhận (Payload: ChannelConfig_t) */
+    COMM_CMD_RESP_CONFIG_PROPOSAL = 0x93, /**< STM32 -> ESP32/AI: Phản hồi duyệt cấu hình (Payload: comm_payload_proposal_resp_t) */
     COMM_CMD_FACTORY_RESET        = 0x15, /**< ESP32 -> STM32: Reset toàn bộ cấu hình về mặc định */
     COMM_CMD_GET_CONFIG_VERSION   = 0x16, /**< ESP32 -> STM32: Đọc version & CRC bảng config */
     COMM_CMD_RESP_CONFIG_VERSION  = 0x96, /**< STM32 -> ESP32: Trả về comm_payload_config_version_t */
@@ -104,7 +106,9 @@ typedef enum {
     COMM_ERR_UNSUPPORTED_MODE   = 0x11, /**< Cổng không hỗ trợ chế độ này */
     COMM_ERR_INVALID_THRESHOLD  = 0x12, /**< Ngưỡng cảnh báo không hợp lệ */
     COMM_ERR_CHANNEL_NOT_FOUND  = 0x13, /**< Channel ID ngoài dải 1..18 */
-    COMM_ERR_STORAGE_FAIL       = 0x14  /**< NVS Flash lỗi hoặc không thể ghi */
+    COMM_ERR_STORAGE_FAIL       = 0x14, /**< NVS Flash lỗi hoặc không thể ghi */
+    COMM_ERR_REJECTED           = 0x15, /**< Người dùng từ chối đề xuất cấu hình trên phím bấm */
+    COMM_ERR_TIMEOUT            = 0x16  /**< Hết thời gian chờ người dùng xác nhận đề xuất */
 } comm_err_t;
 
 /* ========================================================================= */
@@ -236,6 +240,16 @@ typedef struct
 {
     uint8_t channel_id; /**< ID cổng (1 .. 18) */
 } comm_payload_channel_id_t;
+
+/**
+ * @brief Payload cho phản hồi COMM_CMD_RESP_CONFIG_PROPOSAL (0x93)
+ */
+typedef struct __attribute__((packed))
+{
+    uint8_t channel_id;
+    uint8_t accepted;      /**< 1: Chấp thuận (OK), 0: Từ chối (Cancel / Timeout) */
+    uint8_t status_code;   /**< COMM_ERR_OK hoặc mã lỗi */
+} comm_payload_proposal_resp_t;
 
 /**
  * @brief Payload cho lệnh phản hồi COMM_CMD_RESP_CONFIG_VERSION (0x96)
