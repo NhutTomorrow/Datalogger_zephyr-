@@ -43,47 +43,7 @@ int main(void)
     /* 3. Khởi tạo Channel Manager (Mount Flash NVS, nạp cấu hình đã lưu) */
     channel_manager_init(&g_channel_mgr, &g_fault_mgr);
 
-    // /* Cấu hình 2 kênh mặc định (Nhiệt độ CH_01 và Dòng 4-20mA CH_04) */
-    // ChannelConfig_t cfg_temp = {
-    //     .channel_id = 1,
-    //     .interface_mode = MODE_ADC_SINGLE,
-    //     .is_enabled = 1,
-    //     .sample_interval_ms = 1000,
-    //     .metric_type = METRIC_TEMPERATURE,
-    //     .unit_type = UNIT_CELSIUS,
-    //     .calib_type = CALIB_NONE
-    // };
-    // channel_manager_configure(&g_channel_mgr, &cfg_temp, "NhietDo", mock_sensor_get_temperature_ops());
-
-    // ChannelConfig_t cfg_curr = {
-    //     .channel_id = 4,
-    //     .interface_mode = MODE_ADC_SINGLE,
-    //     .is_enabled = 1,
-    //     .sample_interval_ms = 1000,
-    //     .metric_type = METRIC_CURRENT_4_20MA,
-    //     .unit_type = UNIT_MILLIAMP,
-    //     .calib_type = CALIB_NONE
-    // };
-    // channel_manager_configure(&g_channel_mgr, &cfg_curr, "Dong4_20mA", mock_sensor_get_current_loop_ops());
-
-    /* Cấu hình kênh CH_15 đo Nhiệt độ qua RS485 (Đầu dò Modbus RTU) */
-    ChannelConfig_t cfg_rs485_temp = {
-        .channel_id = 15,
-        .interface_mode = MODE_RS485,
-        .is_enabled = 1,
-        .sample_interval_ms = 2000,
-        .metric_type = METRIC_TEMPERATURE,
-        .unit_type = UNIT_CELSIUS,
-        .calib_type = CALIB_MODBUS_RTU,
-        .calib.modbus = {
-            .slave_id = 1,
-            .function_code = 0x03,
-            .register_addr = 0x0000,
-            .byte_swap_mode = 0
-        }
-    };
-    channel_manager_configure(&g_channel_mgr, &cfg_rs485_temp, "Temp", NULL);
-
+    
     /* 4. Khởi tạo ngoại vi UART với Zephyr k_msgq */
     bsp_uart_init();
 

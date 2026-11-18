@@ -22,7 +22,7 @@ bool bsp_din_init(void);
 /**
  * @brief Đọc giá trị mức logic (0.0f hoặc 1.0f) của cổng ngõ vào số.
  */
-bool bsp_din_read(uint8_t channel_id, float *out_value);
+bool bsp_din_read(uint8_t channel_id, const ChannelConfig_t *cfg, float *out_value);
 
 /**
  * @brief Kiểm tra sức khỏe ngõ vào số.

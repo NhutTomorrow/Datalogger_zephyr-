@@ -22,7 +22,7 @@ bool bsp_dout_init(void);
 /**
  * @brief Đọc trạng thái logic hiện tại (0.0f hoặc 1.0f) của cổng Output.
  */
-bool bsp_dout_read(uint8_t channel_id, float *out_value);
+bool bsp_dout_read(uint8_t channel_id, const ChannelConfig_t *cfg, float *out_value);
 
 /**
  * @brief Kiểm tra sức khỏe cổng Output.

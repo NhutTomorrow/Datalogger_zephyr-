@@ -37,10 +37,11 @@ int bsp_rs485_deinit_channel(uint8_t channel_id);
 /**
  * @brief Đọc giá trị đo từ cảm biến Modbus RTU qua RS485.
  * @param channel_id ID cổng vật lý
+ * @param cfg Cấu hình kênh chứa tham số Modbus (slave_id, reg_addr, reg_count, data_type, scale...)
  * @param out_value Con trỏ nhận giá trị đo (float)
  * @return true nếu đọc và xác thực CRC thành công, false nếu timeout hoặc lỗi.
  */
-bool bsp_rs485_read(uint8_t channel_id, float *out_value);
+bool bsp_rs485_read(uint8_t channel_id, const ChannelConfig_t *cfg, float *out_value);
 
 /**
  * @brief Kiểm tra sức khỏe đường truyền RS485 (phát hiện mất kết nối/lỗi CRC).

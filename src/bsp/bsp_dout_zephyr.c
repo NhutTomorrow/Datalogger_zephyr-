@@ -91,7 +91,8 @@ uint8_t bsp_dout_get(uint8_t channel_id) {
     return map->state;
 }
 
-bool bsp_dout_read(uint8_t channel_id, float *out_value) {
+bool bsp_dout_read(uint8_t channel_id, const ChannelConfig_t *cfg, float *out_value) {
+    (void)cfg;
     if (out_value == NULL) return false;
     dout_channel_map_t *map = find_dout_map(channel_id);
     if (map == NULL) return false;

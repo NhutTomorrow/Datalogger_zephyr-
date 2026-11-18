@@ -82,7 +82,8 @@ int bsp_adc_deinit_channel(uint8_t channel_id) {
     return 0;
 }
 
-bool bsp_adc_read(uint8_t channel_id, float *out_value) {
+bool bsp_adc_read(uint8_t channel_id, const ChannelConfig_t *cfg, float *out_value) {
+    (void)cfg;
     if (out_value == NULL) return false;
     const adc_channel_map_t *map = find_adc_map(channel_id);
     if (map == NULL) return false;

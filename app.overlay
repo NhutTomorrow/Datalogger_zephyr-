@@ -66,8 +66,8 @@
         #address-cells = <1>;
         #size-cells = <1>;
 
-        /* 2 Sector cuối (Sector 10: 128KB, Sector 11: 128KB = 128KB) dành cho NVS */
-        storage_partition: partition@c0000 {
+        /*  Sector cuối ( Sector 11: 128KB = 128KB) dành cho NVS */
+        storage_partition: partition@e0000 {
             label = "storage";
             reg = <0x000e0000 0x00020000>;
         };

@@ -23,10 +23,18 @@ extern "C" {
 
 typedef enum {
     FSM_STATE_INIT = 0,         /**< Khởi tạo, hiển thị màn hình chào 2s */
-    FSM_STATE_IDLE,             /**< Chờ, giám sát đo lường, không ghi log SD */
+    //2 State chính để display data từ các channel được config  
+    FSM_STATE_IDLE,             /**< Chờ, giám sát đo lường, không ghi log SD */ 
     FSM_STATE_LOGGING,          /**< Đang trong chế độ ghi log dữ liệu định kỳ */
+    //State báo hiệu ERROR
     FSM_STATE_ERROR,            /**< Có sự cố nghiêm trọng, chớp màn hình ERROR - VUI LONG HOI AI */
-    FSM_STATE_DIAGNOSTIC        /**< Màn hình danh sách mã lỗi (khi AI hỏi hoặc user tra cứu) */
+    FSM_STATE_DIAGNOSTIC,        /**< Màn hình danh sách mã lỗi (khi AI hỏi hoặc user tra cứu) */
+
+    //State Authentication => nhập Account và password từ bàn phím 16 nút
+    FSM_STATE_AUTHENTICATION,
+    //được cấp quyền thì nhảy vào MENU
+    FSM_STATE_MENU
+
 } fsm_state_t;
 
 /* ========================================================================= */

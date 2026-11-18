@@ -17,9 +17,20 @@ LOG_MODULE_REGISTER(channel_mgr, LOG_LEVEL_INF);
 
 #define STORAGE_PARTITION           storage_partition
 #define STORAGE_PARTITION_ID        FIXED_PARTITION_ID(STORAGE_PARTITION)
-#define NVS_KEY_HEADER              0x0000
-#define NVS_KEY_CHANNEL_BASE        0x0001
-#define DEFERRED_SAVE_DELAY_SEC     10
+#define DEFERRED_SAVE_DELAY_SEC     100
+
+#pragma pack(push, 1)
+/**
+ * @brief Bản ghi lưu trữ toàn bộ cấu hình 18 kênh (1 Slot trong Flash).
+ */
+typedef struct {
+    config_table_header_t header;                            /**< 12 bytes */
+    ChannelConfig_t        channels[CHANNEL_MAX_COUNT];       /**< 18 * 32 = 576 bytes */
+    uint8_t                padding[4];                        /**< Căn gióng 8-byte: 588 + 4 = 592 bytes */
+} flash_config_record_t;
+#pragma pack(pop)
+
+#define FLASH_SLOT_SIZE             sizeof(flash_config_record_t)
 
 /* Forward declarations */
 static void channel_sample_work_handler(struct k_work *work);
@@ -77,7 +88,7 @@ static void channel_sample_work_handler(struct k_work *work)
     bool ok = false;
 
     if (ch->driver_ops != NULL && ch->driver_ops->read != NULL) {
-        ok = ch->driver_ops->read(ch->config.channel_id, &raw_val);
+        ok = ch->driver_ops->read(ch->config.channel_id, &ch->config, &raw_val);
     }
 
     if (ok) {
@@ -120,6 +131,63 @@ static void channel_sample_work_handler(struct k_work *work)
  * @param work Con trỏ struct k_work của deferred_save_work
  * @return Không có
  */
+/**
+ * @brief Ghi lưu cấu hình xuống Flash theo cơ chế Append-Only Rolling Slot.
+ * @note Không xóa sector mỗi lần ghi. Chỉ ghi tịnh tiến vào slot trống kế tiếp.
+ */
+static int channel_manager_save_internal(channel_manager_t *mgr)
+{
+    if (mgr == NULL || !mgr->flash_valid) {
+        return -ENODEV;
+    }
+
+    const struct flash_area *fa;
+    int rc = flash_area_open(STORAGE_PARTITION_ID, &fa);
+    if (rc != 0) {
+        LOG_ERR("Khong the mo flash_area storage_partition khi luu: %d", rc);
+        return rc;
+    }
+
+    /* Kiểm tra nếu sector đã đầy (hết 220+ slots) -> Xóa sector 1 lần duy nhất để quay vòng về slot 0 */
+    if (mgr->current_slot_offset + sizeof(flash_config_record_t) > fa->fa_size) {
+        LOG_INF("Flash Sector da su dung het slots (%u bytes). Xoa sector de quay vong...", mgr->current_slot_offset);
+        rc = flash_area_erase(fa, 0, fa->fa_size);
+        if (rc != 0) {
+            LOG_ERR("Loi xoa Flash Sector: %d", rc);
+            flash_area_close(fa);
+            return rc;
+        }
+        mgr->current_slot_offset = 0;
+    }
+
+    /* Đóng gói toàn bộ cấu hình 18 kênh */
+    flash_config_record_t record;
+    memset(&record, 0, sizeof(record));
+
+    for (uint8_t i = 0; i < CHANNEL_MAX_COUNT; i++) {
+        record.channels[i] = mgr->channels[i].config;
+    }
+
+    mgr->header.magic_number = CHANNEL_CONFIG_MAGIC;
+    mgr->header.crc32 = calc_crc32((const uint8_t *)record.channels, sizeof(record.channels));
+    record.header = mgr->header;
+
+    /* Ghi tịnh tiến vào slot trống hiện tại mà KHÔNG CẦN XÓA SECTOR */
+    rc = flash_area_write(fa, mgr->current_slot_offset, &record, sizeof(record));
+    if (rc == 0) {
+        mgr->is_dirty = false;
+        uint32_t slot_idx = mgr->current_slot_offset / FLASH_SLOT_SIZE;
+        LOG_INF("Luu cau hinh vao Flash Slot %u (offset 0x%05X) thanh cong! Ver: %u, CRC: 0x%08X",
+                slot_idx, mgr->current_slot_offset, mgr->header.config_version, mgr->header.crc32);
+        mgr->current_slot_offset += FLASH_SLOT_SIZE;
+    } else {
+        LOG_ERR("Loi ghi Flash tai offset 0x%05X: %d", mgr->current_slot_offset, rc);
+    }
+
+    flash_area_close(fa);
+    return rc;
+}
+
 static void channel_deferred_save_handler(struct k_work *work)
 {
     struct k_work_delayable *dwork = k_work_delayable_from_work(work);
@@ -129,31 +197,13 @@ static void channel_deferred_save_handler(struct k_work *work)
 
     k_mutex_lock(&mgr->config_lock, K_FOREVER);
 
-    if (!mgr->is_dirty || !mgr->nvs_valid) {
+    if (!mgr->is_dirty || !mgr->flash_valid) {
         k_mutex_unlock(&mgr->config_lock);
         return;
     }
 
-    LOG_INF("Deferred Write Timer expired -> Ghi dong bo mang cau hinh xuong Flash NVS...");
-
-    /* 1. Ghi từng kênh vào NVS */
-    for (uint8_t i = 0; i < CHANNEL_MAX_COUNT; i++) {
-        uint16_t key = NVS_KEY_CHANNEL_BASE + i;
-        nvs_write(&mgr->nvs_handle, key, &mgr->channels[i].config, sizeof(ChannelConfig_t));
-    }
-
-    /* 2. Tính toán lại CRC32 toàn bảng */
-    uint8_t temp_buf[CHANNEL_MAX_COUNT * sizeof(ChannelConfig_t)];
-    for (uint8_t i = 0; i < CHANNEL_MAX_COUNT; i++) {
-        memcpy(&temp_buf[i * sizeof(ChannelConfig_t)], &mgr->channels[i].config, sizeof(ChannelConfig_t));
-    }
-    mgr->header.crc32 = calc_crc32(temp_buf, sizeof(temp_buf));
-
-    /* 3. Ghi Header (Magic, Version, CRC32) */
-    nvs_write(&mgr->nvs_handle, NVS_KEY_HEADER, &mgr->header, sizeof(config_table_header_t));
-
-    mgr->is_dirty = false;
-    LOG_INF("Ghi NVS thanh cong! Version moi: %u, CRC: 0x%08X", mgr->header.config_version, mgr->header.crc32);
+    LOG_INF("Deferred Write Timer expired -> Ghi dong bo mang cau hinh xuong Flash...");
+    channel_manager_save_internal(mgr);
 
     k_mutex_unlock(&mgr->config_lock);
 }
@@ -187,60 +237,102 @@ int channel_manager_init(channel_manager_t *mgr, fault_manager_t *fault_mgr)
 
     k_work_init_delayable(&mgr->deferred_save_work, channel_deferred_save_handler);
 
-    /* Khởi tạo phân vùng NVS Flash */
+    /* Mở phân vùng Flash và quét tìm bản ghi cấu hình mới nhất (Rolling Slot) */
     const struct flash_area *fa;
     int rc = flash_area_open(STORAGE_PARTITION_ID, &fa);
     if (rc == 0) {
-        mgr->nvs_handle.flash_device = flash_area_get_device(fa);
-        mgr->nvs_handle.offset = fa->fa_off;
-        mgr->nvs_handle.sector_size = (uint16_t)0x20000; /* 128KB mỗi sector trên STM32F407 */
-        mgr->nvs_handle.sector_count = 2;       /* 2 Sector: Sector 10 & 11 */
+        mgr->flash_valid = true;
+        mgr->nvs_valid = true;
+        LOG_INF("Mo Flash storage_partition thanh cong (size %u bytes, slot_size %u bytes)",
+                (uint32_t)fa->fa_size, (uint32_t)FLASH_SLOT_SIZE);
 
-        rc = nvs_mount(&mgr->nvs_handle);
-        flash_area_close(fa);
+        uint32_t first_empty_offset = UINT32_MAX;
+        uint32_t latest_slot_offset = UINT32_MAX;
+        uint32_t highest_version = 0;
+        flash_config_record_t best_record;
+        bool found_valid = false;
 
-        if (rc == 0) {
-            mgr->nvs_valid = true;
-            LOG_INF("Zephyr NVS mounted thanh cong tai offset 0x%08lX (256KB)", (long)mgr->nvs_handle.offset);
-        } else {
-            LOG_WRN("Zephyr NVS mount that bai (code %d), chay voi cau hinh RAM mac dinh", rc);
-        }
-    } else {
-        LOG_WRN("Khong mo duoc flash_area storage_partition (code %d)", rc);
-    }
+        for (uint32_t offset = 0; offset + FLASH_SLOT_SIZE <= fa->fa_size; offset += FLASH_SLOT_SIZE) {
+            flash_config_record_t rec;
+            int r_rc = flash_area_read(fa, offset, &rec, sizeof(rec));
+            if (r_rc != 0) {
+                LOG_ERR("Loi doc Flash tai offset 0x%05X: %d", offset, r_rc);
+                break;
+            }
 
-    /* Đọc cấu hình từ NVS nếu hợp lệ */
-    bool loaded_from_nvs = false;
-    if (mgr->nvs_valid) {
-        config_table_header_t hdr;
-        ssize_t bytes_read = nvs_read(&mgr->nvs_handle, NVS_KEY_HEADER, &hdr, sizeof(hdr));
-        if (bytes_read == sizeof(hdr) && hdr.magic_number == CHANNEL_CONFIG_MAGIC) {
-            mgr->header = hdr;
-            for (uint8_t i = 0; i < CHANNEL_MAX_COUNT; i++) {
-                ChannelConfig_t cfg;
-                ssize_t ch_bytes = nvs_read(&mgr->nvs_handle, NVS_KEY_CHANNEL_BASE + i, &cfg, sizeof(cfg));
-                if (ch_bytes == sizeof(cfg)) {
-                    mgr->channels[i].config = cfg;
+            /* Slot trống trên Flash NOR có giá trị 0xFFFFFFFF */
+            if (rec.header.magic_number == 0xFFFFFFFF) {
+                first_empty_offset = offset;
+                break;
+            }
+
+            if (rec.header.magic_number == CHANNEL_CONFIG_MAGIC) {
+                uint32_t crc = calc_crc32((const uint8_t *)rec.channels, sizeof(rec.channels));
+                if (crc == rec.header.crc32) {
+                    if (!found_valid || rec.header.config_version >= highest_version) {
+                        highest_version = rec.header.config_version;
+                        latest_slot_offset = offset;
+                        best_record = rec;
+                        found_valid = true;
+                    }
+                } else {
+                    LOG_WRN("Slot tai 0x%05X hong CRC (0x%08X != 0x%08X), bo qua",
+                            offset, rec.header.crc32, crc);
                 }
             }
-            loaded_from_nvs = true;
-            LOG_INF("Nap thanh cong cau hinh tu NVS Flash! Version: %u", mgr->header.config_version);
         }
-    }
 
-    if (!loaded_from_nvs) {
-        /* Tạo header mặc định */
+        if (first_empty_offset != UINT32_MAX) {
+            mgr->current_slot_offset = first_empty_offset;
+        } else {
+            mgr->current_slot_offset = fa->fa_size;
+        }
+
+        if (found_valid) {
+            mgr->header = best_record.header;
+            for (uint8_t i = 0; i < CHANNEL_MAX_COUNT; i++) {
+                mgr->channels[i].config = best_record.channels[i];
+            }
+            mgr->is_dirty = false;
+            LOG_INF("Khoi phuc thanh cong cau hinh tu Flash Slot %u (offset 0x%05X)! Version: %u, CRC: 0x%08X",
+                    latest_slot_offset / FLASH_SLOT_SIZE, latest_slot_offset,
+                    mgr->header.config_version, mgr->header.crc32);
+        } else {
+            mgr->header.magic_number = CHANNEL_CONFIG_MAGIC;
+            mgr->header.config_version = 1;
+            mgr->header.crc32 = 0;
+            mgr->is_dirty = true;
+            LOG_INF("Chua co cau hinh tren Flash. Chay voi cau hinh RAM mac dinh.");
+        }
+
+        flash_area_close(fa);
+    } else {
+        mgr->flash_valid = false;
+        mgr->nvs_valid = false;
+        LOG_ERR("Khong mo duoc flash_area storage_partition (code %d)", rc);
         mgr->header.magic_number = CHANNEL_CONFIG_MAGIC;
         mgr->header.config_version = 1;
         mgr->header.crc32 = 0;
-        mgr->is_dirty = true;
+        mgr->is_dirty = false;
     }
 
-    /* Tự động kích hoạt các kênh có is_enabled == 1 */
+    /* Tự động kích hoạt các kênh có is_enabled == 1 và khởi tạo driver phần cứng tương ứng */
     for (uint8_t i = 0; i < CHANNEL_MAX_COUNT; i++) {
-        if (mgr->channels[i].config.is_enabled != 0) {
-            mgr->channels[i].state = CHANNEL_STATE_ACTIVE;
-            k_work_reschedule(&mgr->channels[i].sample_work, K_NO_WAIT);
+        channel_runtime_t *ch = &mgr->channels[i];
+        if (ch->config.is_enabled != 0) {
+            uint8_t id = ch->config.channel_id;
+            const channel_driver_ops_t *ops = driver_registry_get_ops(id, (channel_interface_mode_t)ch->config.interface_mode);
+            if (ops != NULL) {
+                ch->driver_ops = ops;
+                if (ops->init != NULL) {
+                    ops->init();
+                }
+            }
+            driver_registry_init_channel_hw(id, (channel_interface_mode_t)ch->config.interface_mode);
+            ch->state = CHANNEL_STATE_ACTIVE;
+            uint16_t interval = ch->config.sample_interval_ms >= 50 ? ch->config.sample_interval_ms : 1000;
+            k_work_reschedule(&ch->sample_work, K_MSEC(interval));
+            LOG_INF("Khoi dong lai CH_%02u (Mode: %u, Interval: %ums)", id, ch->config.interface_mode, interval);
         }
     }
 
@@ -399,14 +491,17 @@ int channel_manager_disable(channel_manager_t *mgr, uint8_t channel_id)
 int channel_manager_flush_nvs(channel_manager_t *mgr)
 {
     if (mgr == NULL) return -EINVAL;
-    if (!mgr->nvs_valid) return -ENODEV;
+    if (!mgr->flash_valid) return -ENODEV;
 
     /* Hủy timer chờ và thực hiện ghi ngay lập tức */
     struct k_work_sync sync;
     k_work_cancel_delayable_sync(&mgr->deferred_save_work, &sync);
-    channel_deferred_save_handler(&mgr->deferred_save_work.work);
 
-    return 0;
+    k_mutex_lock(&mgr->config_lock, K_FOREVER);
+    int rc = channel_manager_save_internal(mgr);
+    k_mutex_unlock(&mgr->config_lock);
+
+    return rc;
 }
 
 /**
@@ -647,22 +742,31 @@ int channel_manager_factory_reset(channel_manager_t *mgr)
 
     k_mutex_lock(&mgr->config_lock, K_FOREVER);
 
-    /* Dừng toàn bộ worker */
+    /* Dừng toàn bộ worker và deinit hw */
     for (uint8_t i = 0; i < CHANNEL_MAX_COUNT; i++) {
         struct k_work_sync sync;
         k_work_cancel_delayable_sync(&mgr->channels[i].sample_work, &sync);
+        driver_registry_deinit_channel_hw(i + 1);
         memset(&mgr->channels[i].config, 0, sizeof(ChannelConfig_t));
         mgr->channels[i].config.channel_id = i + 1;
         mgr->channels[i].state = CHANNEL_STATE_UNCONFIGURED;
         mgr->channels[i].is_valid = false;
+        mgr->channels[i].driver_ops = NULL;
     }
 
     struct k_work_sync sync_save;
     k_work_cancel_delayable_sync(&mgr->deferred_save_work, &sync_save);
 
-    /* Xóa NVS Flash */
-    if (mgr->nvs_valid) {
-        nvs_clear(&mgr->nvs_handle);
+    /* Xóa toàn bộ phân vùng Flash Sector */
+    if (mgr->flash_valid) {
+        const struct flash_area *fa;
+        int rc = flash_area_open(STORAGE_PARTITION_ID, &fa);
+        if (rc == 0) {
+            flash_area_erase(fa, 0, fa->fa_size);
+            flash_area_close(fa);
+            LOG_INF("Da erase toan bo Flash storage_partition");
+        }
+        mgr->current_slot_offset = 0;
     }
 
     mgr->header.magic_number = CHANNEL_CONFIG_MAGIC;

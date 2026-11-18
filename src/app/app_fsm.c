@@ -519,6 +519,7 @@ void app_run_step(app_context_t *app, uint32_t current_tick_ms)
     {
     case FSM_STATE_INIT:
     {
+        
         if (current_tick_ms >= BOOT_SCREEN_DURATION_MS)
         {
             /* Hết thời gian chào -> Chuyển sang IDLE và vẽ UI */

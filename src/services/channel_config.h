@@ -78,13 +78,34 @@ typedef enum {
 /* CẤU TRÚC DỮ LIỆU ĐÓNG GÓI (PACKED BINARY PROTOCOL)                         */
 /* ========================================================================= */
 
+/**
+ * @brief Kiểu dữ liệu thô trả về từ thanh ghi Modbus RTU.
+ */
+typedef enum {
+    MODBUS_DATA_TYPE_INT16   = 0,  /**< Số nguyên 16-bit có dấu */
+    MODBUS_DATA_TYPE_UINT16  = 1,  /**< Số nguyên 16-bit không dấu */
+    MODBUS_DATA_TYPE_FLOAT32 = 2,  /**< Số thực 32-bit chuẩn IEEE-754 */
+    MODBUS_DATA_TYPE_INT32   = 3,  /**< Số nguyên 32-bit có dấu */
+    MODBUS_DATA_TYPE_UINT32  = 4   /**< Số nguyên 32-bit không dấu */
+} modbus_data_type_t;
+
+/**
+ * @brief Chế độ hoán đổi byte / word cho dữ liệu Modbus RTU.
+ */
+typedef enum {
+    MODBUS_BYTE_SWAP_ABCD = 0,     /**< Big-Endian chuẩn (AB CD) */
+    MODBUS_BYTE_SWAP_CDAB = 1,     /**< Word Swap (CD AB) */
+    MODBUS_BYTE_SWAP_BADC = 2,     /**< Byte Swap (BA DC) */
+    MODBUS_BYTE_SWAP_DCBA = 3      /**< Little-Endian toàn phần (DC BA) */
+} modbus_byte_swap_t;
+
 #pragma pack(push, 1)
 
 /**
- * @brief Tham số hiệu chuẩn động cho từng loại cổng (Tối đa 12 bytes).
+ * @brief Tham số hiệu chuẩn động cho từng loại cổng (Đúng 12 bytes).
  */
 typedef union {
-    /* Nhánh dành cho cảm biến Analog ADC */
+    /* Nhánh dành cho cảm biến Analog ADC (12 bytes) */
     struct {
         float    scale_a;       /**< Hệ số góc (slope) */
         float    offset_b;      /**< Độ lệch điểm 0 (bias/offset) */
@@ -92,12 +113,16 @@ typedef union {
         uint16_t raw_max_mv;    /**< Điện áp mV tối đa hợp lệ */
     } adc;
 
-    /* Nhánh dành cho cảm biến Modbus RTU qua RS485 */
+    /* Nhánh dành cho cảm biến Modbus RTU qua RS485 (Đúng 12 bytes) */
     struct {
         uint8_t  slave_id;       /**< Địa chỉ Slave (1 - 247) */
         uint8_t  function_code;  /**< Mã hàm đọc (0x03 Read Holding, 0x04 Read Input) */
-        uint16_t register_addr;  /**< Địa chỉ thanh ghi */
-        uint8_t  byte_swap_mode; /**< Thứ tự byte: 0: AB CD, 1: CD AB, 2: BA DC */
+        uint16_t register_addr;  /**< Địa chỉ thanh ghi bắt đầu */
+        uint8_t  reg_count;      /**< Số lượng thanh ghi cần đọc (1 hoặc 2) */
+        uint8_t  data_type;      /**< modbus_data_type_t (INT16, UINT16, FLOAT32...) */
+        uint8_t  byte_swap_mode; /**< modbus_byte_swap_t (ABCD, CDAB, BADC, DCBA) */
+        uint8_t  reserved;       /**< Byte đệm căn gióng */
+        float    scale_factor;   /**< Hệ số tỷ lệ nhân với giá trị thô */
     } modbus;
 } channel_calib_params_t;
 

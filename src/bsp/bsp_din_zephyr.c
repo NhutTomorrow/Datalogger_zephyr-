@@ -65,7 +65,8 @@ int bsp_din_deinit_channel(uint8_t channel_id) {
     return 0;
 }
 
-bool bsp_din_read(uint8_t channel_id, float *out_value) {
+bool bsp_din_read(uint8_t channel_id, const ChannelConfig_t *cfg, float *out_value) {
+    (void)cfg;
     if (out_value == NULL) return false;
     const din_channel_map_t *map = find_din_map(channel_id);
     if (map == NULL) return false;

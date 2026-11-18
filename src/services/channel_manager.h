@@ -16,7 +16,7 @@
 #include <stdbool.h>
 
 #include <zephyr/kernel.h>
-#include <zephyr/fs/nvs.h>
+#include <zephyr/storage/flash_map.h>
 
 #include "channel_config.h"
 #include "fault_manager.h"
@@ -37,8 +37,8 @@ extern "C" {
 /* ========================================================================= */
 
 typedef struct {
-    bool (*init)(void);                                /**< Khởi tạo ngoại vi / cảm biến */
-    bool (*read)(uint8_t channel_id, float *out_value);                    /**< Đọc giá trị thô từ phần cứng */
+    bool (*init)(void);                                                    /**< Khởi tạo ngoại vi / cảm biến */
+    bool (*read)(uint8_t channel_id, const ChannelConfig_t *cfg, float *out_value); /**< Đọc giá trị từ phần cứng dựa trên config */
     bool (*health_check)(uint8_t channel_id, uint16_t *out_fault_code);    /**< Tự chẩn đoán đứt dây / lỗi bus */
     void (*inject_fault)(uint8_t channel_id, uint16_t fault_code, bool en);/**< Ép sinh lỗi phục vụ Demo AI */
 } channel_driver_ops_t;
@@ -114,8 +114,9 @@ typedef struct channel_manager {
     channel_runtime_t       channels[CHANNEL_MAX_COUNT]; /**< Quản lý 18 kênh vật lý */
     config_table_header_t   header;                      /**< Header phiên bản & CRC */
     struct k_mutex          config_lock;                 /**< Mutex chống xung đột luồng */
-    struct nvs_fs           nvs_handle;                  /**< Handle Zephyr NVS Flash */
-    bool                    nvs_valid;                   /**< Trạng thái Flash */
+    uint32_t                current_slot_offset;         /**< Offset của Slot ghi tiếp theo (Rolling Slot) */
+    bool                    flash_valid;                 /**< Trạng thái phân vùng Flash */
+    bool                    nvs_valid;                   /**< Tương thích API (true nếu Flash sẵn sàng) */
     bool                    is_dirty;                    /**< Đánh dấu RAM khác Flash */
     struct k_work_delayable deferred_save_work;          /**< Timer 10s hoãn ghi Flash */
     fault_manager_t        *fault_mgr;                   /**< Fault Manager toàn trạm */

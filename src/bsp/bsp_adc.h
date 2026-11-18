@@ -22,10 +22,11 @@ bool bsp_adc_init(void);
 /**
  * @brief Đọc giá trị điện áp (Volt) từ kênh ADC tương ứng với channel_id.
  * @param channel_id Cổng vật lý (1 .. 7)
+ * @param cfg Cấu hình kênh
  * @param out_value Con trỏ nhận giá trị điện áp thô (Volt)
  * @return true nếu đọc thành công, false nếu lỗi
  */
-bool bsp_adc_read(uint8_t channel_id, float *out_value);
+bool bsp_adc_read(uint8_t channel_id, const ChannelConfig_t *cfg, float *out_value);
 
 /**
  * @brief Kiểm tra sức khỏe đường truyền analog (phát hiện dây đứt, clipping).
