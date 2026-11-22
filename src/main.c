@@ -11,9 +11,6 @@
 #include "channel_manager.h"
 #include "fault_manager.h"
 #include "app_fsm.h"
-#include "bsp_uart.h"
-#include "bsp_button.h"
-#include "bsp_lcd.h"
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_INF);
 
@@ -44,10 +41,8 @@ int main(void)
     channel_manager_init(&g_channel_mgr, &g_fault_mgr);
 
     
-    /* 4. Khởi tạo ngoại vi UART với Zephyr k_msgq */
-    bsp_uart_init();
 
-    /* 5. Khởi tạo FSM với các driver BSP trực tiếp */
+    /* 4. Khởi tạo FSM với các driver BSP trực tiếp */
     app_dependencies_t deps = {
         .channel_mgr  = &g_channel_mgr,
         .fault_mgr    = &g_fault_mgr,

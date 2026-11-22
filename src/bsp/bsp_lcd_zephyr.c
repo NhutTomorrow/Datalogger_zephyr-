@@ -1094,11 +1094,11 @@ void bsp_lcd_show_ai_proposal(uint8_t ch_id, const char *mode_str, const char *m
     /* Decision boxes */
     lcd_fill(20, 140, lcddev.width - 20, 175, DARKBLUE);
     lcd_draw_rectangle(20, 140, lcddev.width - 20, 175, GREEN);
-    lcd_show_string(35, 150, "[ENTER] : DONG Y AP DUNG", GREEN, DARKBLUE, 16, 0);
+    lcd_show_string(35, 150, "[ENTER] : AP DUNG", GREEN, DARKBLUE, 16, 0);
 
     lcd_fill(20, 190, lcddev.width - 20, 225, DARKBLUE);
     lcd_draw_rectangle(20, 190, lcddev.width - 20, 225, RED);
-    lcd_show_string(35, 200, "[BACK]  : TU CHOI / CANCEL", RED, DARKBLUE, 16, 0);
+    lcd_show_string(35, 200, "[BACK] : CANCEL", RED, DARKBLUE, 16, 0);
 }
 
 

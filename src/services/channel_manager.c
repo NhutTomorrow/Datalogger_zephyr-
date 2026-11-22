@@ -778,23 +778,3 @@ int channel_manager_factory_reset(channel_manager_t *mgr)
     k_mutex_unlock(&mgr->config_lock);
     return 0;
 }
-
-/**
- * @brief Chuyển đổi mã enum đơn vị đo lường sang chuỗi ký tự hiển thị.
- * @param unit Mã đơn vị đo lường (sensor_unit_t)
- * @return Chuỗi ký tự biểu diễn đơn vị (ví dụ: "oC", "%", "mA", "V")
- */
-const char *sensor_unit_to_str(sensor_unit_t unit)
-{
-    switch (unit) {
-        case UNIT_CELSIUS:    return "oC";
-        case UNIT_PERCENT_RH: return "%";
-        case UNIT_MILLIAMP:   return "mA";
-        case UNIT_VOLT:       return "V";
-        case UNIT_PH:         return "pH";
-        case UNIT_BAR:        return "bar";
-        case UNIT_PPM:        return "ppm";
-        case UNIT_RAW:
-        default:              return "";
-    }
-}

@@ -19,6 +19,7 @@
 #include <zephyr/storage/flash_map.h>
 
 #include "channel_config.h"
+#include "channel_driver_ops.h"
 #include "fault_manager.h"
 #include "com_protocol.h"
 
@@ -27,55 +28,8 @@ extern "C" {
 #endif
 
 /* ========================================================================= */
-/* HẰNG SỐ HỆ THỐNG                                                          */
+/* DTO & DRIVER OPS ĐƯỢC ĐỊNH NGHĨA TRONG channel_config.h & channel_driver_ops.h */
 /* ========================================================================= */
-
-#define CHANNEL_NAME_MAX_LEN        16          /**< Độ dài tối đa nhãn kênh (kể cả '\0') */
-
-/* ========================================================================= */
-/* 1. GIAO DIỆN DRIVER NGOẠI VI (HARDWARE DRIVER OPS)                        */
-/* ========================================================================= */
-
-typedef struct {
-    bool (*init)(void);                                                    /**< Khởi tạo ngoại vi / cảm biến */
-    bool (*read)(uint8_t channel_id, const ChannelConfig_t *cfg, float *out_value); /**< Đọc giá trị từ phần cứng dựa trên config */
-    bool (*health_check)(uint8_t channel_id, uint16_t *out_fault_code);    /**< Tự chẩn đoán đứt dây / lỗi bus */
-    void (*inject_fault)(uint8_t channel_id, uint16_t fault_code, bool en);/**< Ép sinh lỗi phục vụ Demo AI */
-} channel_driver_ops_t;
-
-/* Backward compatibility typedef */
-typedef channel_driver_ops_t sensor_driver_ops_t;
-
-/* ========================================================================= */
-/* 2. DỮ LIỆU XUẤT BÁO CÁO (TELEMETRY SNAPSHOT DTO)                          */
-/* ========================================================================= */
-
-/**
- * @brief Một dòng dữ liệu đo lường trong bản báo cáo.
- */
-typedef struct {
-    uint8_t       channel_id;                 /**< ID cổng vật lý: 1 .. 18 */
-    char          name[CHANNEL_NAME_MAX_LEN]; /**< Tên nhãn (vd: "NhietDo") */
-    double         value;                      /**< Giá trị đo sau khi calib */
-    sensor_unit_t unit;                       /**< Đơn vị đo */
-    bool          is_valid;                   /**< true nếu dữ liệu tin cậy */
-    uint16_t      fault_code;                 /**< Mã lỗi hiện tại */
-} channel_telemetry_item_t;
-
-/* Backward compatibility typedef */
-typedef channel_telemetry_item_t sensor_channel_t;
-
-/**
- * @brief Tờ báo cáo chụp nhanh toàn bộ trạm (dùng cho LCD & UART).
- */
-typedef struct {
-    uint8_t                  total_channels;
-    channel_telemetry_item_t channels[CHANNEL_MAX_COUNT];
-    uint32_t                 timestamp_sec;
-} channel_snapshot_t;
-
-/* Backward compatibility typedef */
-typedef channel_snapshot_t sensor_telemetry_snapshot_t;
 
 /* ========================================================================= */
 /* 3. VÒNG ĐỜI VÀ TIẾN TRÌNH RUNTIME CỦA 1 KÊNH (CHANNEL RUNTIME CONTEXT)    */
@@ -180,8 +134,6 @@ void channel_manager_check_health(channel_manager_t *mgr);
 void channel_manager_inject_fault(channel_manager_t *mgr, uint8_t channel_id, uint16_t fault_code, bool enable);
 
 int channel_manager_factory_reset(channel_manager_t *mgr);
-
-const char *sensor_unit_to_str(sensor_unit_t unit);
 
 #ifdef __cplusplus
 }

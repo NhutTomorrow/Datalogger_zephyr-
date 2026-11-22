@@ -8,7 +8,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "channel_manager.h"
+#include "channel_driver_ops.h"
 
 #ifdef __cplusplus
 extern "C" {

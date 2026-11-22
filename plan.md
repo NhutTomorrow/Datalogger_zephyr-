@@ -62,6 +62,7 @@ Tài liệu theo dõi tổng quan các hạng mục còn thiếu cần hoàn thi
     - Hiển thị trực tiếp giá trị thô (**Raw ADC mV**, **Raw Modbus Register Hex**) song song với giá trị vật lý đã calib để kỹ sư đối soát phần cứng tại chỗ.
   - [ ] **2.3.9. Tích hợp Ngoại vi Còi Buzzer & Đèn Báo**:
     - Kích hoạt còi Buzzer kêu ngắt quãng khi FSM vào `ALARM_POPUP`. Tắt còi ngay khi người dùng bấm phím ACK (ENTER/BACK).
+  -  [ ] **2.3.10. Cơ chế safe check và hiển thị nhưng thay đổi config dc thay đổi lên màn hình để user nhấn accept hoặc gưir lệnh đồng ý áp dụng config**
 
 Cấu trúc bàn phím:
 Cột 1 (BTN 1, 5, 9, 13): [1 . , ?], [4 ghi], [7 pqrs], [* Shift / .]

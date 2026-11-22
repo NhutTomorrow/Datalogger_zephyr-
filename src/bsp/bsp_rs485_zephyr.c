@@ -5,7 +5,7 @@
  */
 
 #include "bsp_rs485.h"
-#include "fault_manager.h"
+#include "fault_codes.h"
 #include <string.h>
 #include <errno.h>
 

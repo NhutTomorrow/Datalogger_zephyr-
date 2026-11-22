@@ -29,6 +29,43 @@ typedef enum {
 
 #define CHANNEL_MAX_COUNT          18          /**< Tổng số cổng vật lý của trạm */
 #define CHANNEL_CONFIG_MAGIC       0x55AA1234  /**< Magic nhận diện phân vùng NVS hợp lệ */
+#define CHANNEL_NAME_MAX_LEN       16          /**< Độ dài tối đa nhãn kênh (kể cả '\0') */
+
+/* ========================================================================= */
+/* DỮ LIỆU BÁO CÁO TELEMETRY SNAPSHOT DTO                                    */
+/* ========================================================================= */
+
+/**
+ * @brief Một dòng dữ liệu đo lường trong bản báo cáo.
+ */
+typedef struct {
+    uint8_t        channel_id;                 /**< ID cổng vật lý: 1 .. 18 */
+    char           name[CHANNEL_NAME_MAX_LEN]; /**< Tên nhãn (vd: "NhietDo") */
+    double         value;                      /**< Giá trị đo sau khi calib */
+    sensor_unit_t  unit;                       /**< Đơn vị đo */
+    bool           is_valid;                   /**< true nếu dữ liệu tin cậy */
+    uint16_t       fault_code;                 /**< Mã lỗi hiện tại */
+} channel_telemetry_item_t;
+
+/* Tên định danh tương thích ngược */
+typedef channel_telemetry_item_t sensor_channel_t;
+
+/**
+ * @brief Tờ báo cáo chụp nhanh toàn bộ trạm (dùng cho LCD & UART).
+ */
+typedef struct {
+    uint8_t                  total_channels;
+    channel_telemetry_item_t channels[CHANNEL_MAX_COUNT];
+    uint32_t                 timestamp_sec;
+} channel_snapshot_t;
+
+/* Tên định danh tương thích ngược */
+typedef channel_snapshot_t sensor_telemetry_snapshot_t;
+
+/**
+ * @brief Chuyển đổi mã enum đơn vị đo lường sang chuỗi ký tự hiển thị.
+ */
+const char *sensor_unit_to_str(sensor_unit_t unit);
 
 /* ========================================================================= */
 /* CÁC ENUM ĐỊNH DANH (CHẾ ĐỘ, ĐẠI LƯỢNG, CALIB)                             */

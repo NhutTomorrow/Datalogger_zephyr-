@@ -1,0 +1,1371 @@
+{
+  "nodes": [
+    {
+      "id": "app_fsm.c",
+      "path": "src/app/app_fsm.c",
+      "layer": "Application (FSM)",
+      "color": "#f59e0b",
+      "layer_rank": 3,
+      "loc": 1481,
+      "local_incs": [
+        "app_fsm.h",
+        "bsp_lcd.h",
+        "bsp_uart.h",
+        "bsp_button.h",
+        "bsp_dout.h",
+        "channel_hw_caps.h"
+      ],
+      "sys_incs": [
+        "string.h",
+        "stdlib.h",
+        "stdio.h",
+        "errno.h",
+        "zephyr/kernel.h",
+        "zephyr/sys/reboot.h"
+      ],
+      "func_count": 3,
+      "funcs": [
+        "app_init",
+        "app_run_step",
+        "app_on_uart_byte_received"
+      ],
+      "role": "Finite State Machine 11 trạng thái điều phối toàn bộ UI LCD, keypad multi-tap, popup cảnh báo và lưu trữ.",
+      "in_edges": [],
+      "out_edges": [
+        "app_fsm.h",
+        "bsp_lcd.h",
+        "bsp_uart.h",
+        "bsp_button.h",
+        "bsp_dout.h",
+        "channel_hw_caps.h"
+      ]
+    },
+    {
+      "id": "app_fsm.h",
+      "path": "src/app/app_fsm.h",
+      "layer": "Application (FSM)",
+      "color": "#f59e0b",
+      "layer_rank": 3,
+      "loc": 170,
+      "local_incs": [
+        "channel_manager.h",
+        "fault_manager.h",
+        "com_protocol.h",
+        "button_manager.h",
+        "keypad_multitap.h"
+      ],
+      "sys_incs": [
+        "stdint.h",
+        "stdbool.h"
+      ],
+      "func_count": 0,
+      "funcs": [],
+      "role": "Định nghĩa các enum fsm_state_t, cấu trúc context app_context_t và dependencies.",
+      "in_edges": [
+        "app_fsm.c",
+        "main.c"
+      ],
+      "out_edges": [
+        "channel_manager.h",
+        "fault_manager.h",
+        "com_protocol.h",
+        "button_manager.h",
+        "keypad_multitap.h"
+      ]
+    },
+    {
+      "id": "bsp_adc.h",
+      "path": "src/bsp/bsp_adc.h",
+      "layer": "BSP (Drivers)",
+      "color": "#10b981",
+      "layer_rank": 1,
+      "loc": 63,
+      "local_incs": [
+        "channel_driver_ops.h"
+      ],
+      "sys_incs": [
+        "stdint.h",
+        "stdbool.h"
+      ],
+      "func_count": 0,
+      "funcs": [],
+      "role": "Giao diện phần cứng ADC cho CH01..CH07.",
+      "in_edges": [
+        "bsp_adc_zephyr.c",
+        "driver_registry.c"
+      ],
+      "out_edges": [
+        "channel_driver_ops.h"
+      ]
+    },
+    {
+      "id": "bsp_adc_zephyr.c",
+      "path": "src/bsp/bsp_adc_zephyr.c",
+      "layer": "BSP (Drivers)",
+      "color": "#10b981",
+      "layer_rank": 1,
+      "loc": 161,
+      "local_incs": [
+        "bsp_adc.h",
+        "fault_codes.h"
+      ],
+      "sys_incs": [
+        "string.h",
+        "errno.h",
+        "zephyr/kernel.h",
+        "zephyr/drivers/adc.h",
+        "zephyr/logging/log.h",
+        "stdio.h"
+      ],
+      "func_count": 6,
+      "funcs": [
+        "bsp_adc_init",
+        "bsp_adc_init_channel",
+        "bsp_adc_deinit_channel",
+        "bsp_adc_read",
+        "bsp_adc_health_check",
+        "bsp_adc_inject_fault"
+      ],
+      "role": "Driver đọc điện áp STM32 ADC1, chuyển đổi mV, kiểm tra đứt dây / clipping.",
+      "in_edges": [],
+      "out_edges": [
+        "bsp_adc.h",
+        "fault_codes.h"
+      ]
+    },
+    {
+      "id": "bsp_button.h",
+      "path": "src/bsp/bsp_button.h",
+      "layer": "BSP (Drivers)",
+      "color": "#10b981",
+      "layer_rank": 1,
+      "loc": 37,
+      "local_incs": [],
+      "sys_incs": [
+        "stdint.h",
+        "stdbool.h"
+      ],
+      "func_count": 0,
+      "funcs": [],
+      "role": "Giao diện đọc trạng thái thô 16 bit từ 74HC165.",
+      "in_edges": [
+        "app_fsm.c",
+        "bsp_button_zephyr.c"
+      ],
+      "out_edges": []
+    },
+    {
+      "id": "bsp_button_zephyr.c",
+      "path": "src/bsp/bsp_button_zephyr.c",
+      "layer": "BSP (Drivers)",
+      "color": "#10b981",
+      "layer_rank": 1,
+      "loc": 109,
+      "local_incs": [
+        "bsp_button.h"
+      ],
+      "sys_incs": [
+        "zephyr/kernel.h",
+        "zephyr/device.h",
+        "zephyr/drivers/gpio.h",
+        "zephyr/drivers/spi.h",
+        "string.h"
+      ],
+      "func_count": 3,
+      "funcs": [
+        "bsp_button_74hc165_init",
+        "bsp_button_74hc165_read_all_raw",
+        "bsp_button_74hc165_read_single"
+      ],
+      "role": "Driver đọc IC dịch 74HC165 qua giao thức SPI cho bàn phím 16 nút.",
+      "in_edges": [],
+      "out_edges": [
+        "bsp_button.h"
+      ]
+    },
+    {
+      "id": "bsp_din.h",
+      "path": "src/bsp/bsp_din.h",
+      "layer": "BSP (Drivers)",
+      "color": "#10b981",
+      "layer_rank": 1,
+      "loc": 56,
+      "local_incs": [
+        "channel_driver_ops.h"
+      ],
+      "sys_incs": [
+        "stdint.h",
+        "stdbool.h"
+      ],
+      "func_count": 0,
+      "funcs": [],
+      "role": "Giao diện ngõ vào số và đếm xung tần số cao.",
+      "in_edges": [
+        "bsp_din_zephyr.c",
+        "driver_registry.c"
+      ],
+      "out_edges": [
+        "channel_driver_ops.h"
+      ]
+    },
+    {
+      "id": "bsp_din_zephyr.c",
+      "path": "src/bsp/bsp_din_zephyr.c",
+      "layer": "BSP (Drivers)",
+      "color": "#10b981",
+      "layer_rank": 1,
+      "loc": 113,
+      "local_incs": [
+        "bsp_din.h",
+        "fault_codes.h"
+      ],
+      "sys_incs": [
+        "string.h",
+        "errno.h",
+        "zephyr/kernel.h",
+        "zephyr/drivers/gpio.h",
+        "zephyr/logging/log.h"
+      ],
+      "func_count": 6,
+      "funcs": [
+        "bsp_din_init",
+        "bsp_din_init_channel",
+        "bsp_din_deinit_channel",
+        "bsp_din_read",
+        "bsp_din_health_check",
+        "bsp_din_inject_fault"
+      ],
+      "role": "Driver đọc GPIO ngõ vào số DIN và đếm xung qua Interrupts.",
+      "in_edges": [],
+      "out_edges": [
+        "bsp_din.h",
+        "fault_codes.h"
+      ]
+    },
+    {
+      "id": "bsp_dout.h",
+      "path": "src/bsp/bsp_dout.h",
+      "layer": "BSP (Drivers)",
+      "color": "#10b981",
+      "layer_rank": 1,
+      "loc": 69,
+      "local_incs": [
+        "channel_driver_ops.h"
+      ],
+      "sys_incs": [
+        "stdint.h",
+        "stdbool.h"
+      ],
+      "func_count": 0,
+      "funcs": [],
+      "role": "Giao diện điều khiển rơ-le / ngõ ra số.",
+      "in_edges": [
+        "app_fsm.c",
+        "bsp_dout_zephyr.c",
+        "driver_registry.c"
+      ],
+      "out_edges": [
+        "channel_driver_ops.h"
+      ]
+    },
+    {
+      "id": "bsp_dout_zephyr.c",
+      "path": "src/bsp/bsp_dout_zephyr.c",
+      "layer": "BSP (Drivers)",
+      "color": "#10b981",
+      "layer_rank": 1,
+      "loc": 129,
+      "local_incs": [
+        "bsp_dout.h",
+        "fault_codes.h"
+      ],
+      "sys_incs": [
+        "string.h",
+        "errno.h",
+        "zephyr/kernel.h",
+        "zephyr/drivers/gpio.h",
+        "zephyr/logging/log.h"
+      ],
+      "func_count": 8,
+      "funcs": [
+        "bsp_dout_init",
+        "bsp_dout_init_channel",
+        "bsp_dout_deinit_channel",
+        "bsp_dout_set",
+        "bsp_dout_get",
+        "bsp_dout_read",
+        "bsp_dout_health_check",
+        "bsp_dout_inject_fault"
+      ],
+      "role": "Driver điều khiển Relay / DOUT kèm kiểm tra trạng thái hồi tiếp phần cứng.",
+      "in_edges": [],
+      "out_edges": [
+        "bsp_dout.h",
+        "fault_codes.h"
+      ]
+    },
+    {
+      "id": "bsp_lcd.h",
+      "path": "src/bsp/bsp_lcd.h",
+      "layer": "BSP (Drivers)",
+      "color": "#10b981",
+      "layer_rank": 1,
+      "loc": 114,
+      "local_incs": [
+        "channel_config.h"
+      ],
+      "sys_incs": [
+        "stdint.h",
+        "stdbool.h",
+        "stdio.h"
+      ],
+      "func_count": 0,
+      "funcs": [],
+      "role": "API vẽ đồ họa mức cơ sở: vẽ chuỗi, vẽ hộp thoại, đổ màu, cập nhật vùng dirty.",
+      "in_edges": [
+        "app_fsm.c",
+        "bsp_lcd_zephyr.c"
+      ],
+      "out_edges": [
+        "channel_config.h"
+      ]
+    },
+    {
+      "id": "bsp_lcd_zephyr.c",
+      "path": "src/bsp/bsp_lcd_zephyr.c",
+      "layer": "BSP (Drivers)",
+      "color": "#10b981",
+      "layer_rank": 1,
+      "loc": 1107,
+      "local_incs": [
+        "bsp_lcd.h"
+      ],
+      "sys_incs": [
+        "lcd_font.h",
+        "stdlib.h",
+        "string.h",
+        "zephyr/kernel.h",
+        "zephyr/device.h",
+        "zephyr/drivers/gpio.h",
+        "stm32f4xx_hal.h",
+        "stm32f4xx_ll_fsmc.h"
+      ],
+      "func_count": 42,
+      "funcs": [
+        "LCD_WR_REG",
+        "LCD_WR_DATA",
+        "LCD_RD_DATA",
+        "lcd_set_address",
+        "lcd_set_cursor",
+        "lcd_set_display_on",
+        "lcd_set_display_off",
+        "lcd_read_point",
+        "lcd_clear",
+        "lcd_fill",
+        "lcd_draw_point",
+        "lcd_draw_line"
+      ],
+      "role": "Driver màn hình màu 8080 FSMC 16-bit, double-buffering / dirty-rect redraw, render font.",
+      "in_edges": [],
+      "out_edges": [
+        "bsp_lcd.h"
+      ]
+    },
+    {
+      "id": "bsp_rs485.h",
+      "path": "src/bsp/bsp_rs485.h",
+      "layer": "BSP (Drivers)",
+      "color": "#10b981",
+      "layer_rank": 1,
+      "loc": 68,
+      "local_incs": [
+        "channel_driver_ops.h"
+      ],
+      "sys_incs": [
+        "stdint.h",
+        "stdbool.h"
+      ],
+      "func_count": 0,
+      "funcs": [],
+      "role": "Giao diện truyền nhận RS485 / Modbus-RTU cho kênh mở rộng.",
+      "in_edges": [
+        "bsp_rs485_zephyr.c",
+        "driver_registry.c"
+      ],
+      "out_edges": [
+        "channel_driver_ops.h"
+      ]
+    },
+    {
+      "id": "bsp_rs485_zephyr.c",
+      "path": "src/bsp/bsp_rs485_zephyr.c",
+      "layer": "BSP (Drivers)",
+      "color": "#10b981",
+      "layer_rank": 1,
+      "loc": 325,
+      "local_incs": [
+        "bsp_rs485.h",
+        "fault_codes.h"
+      ],
+      "sys_incs": [
+        "string.h",
+        "errno.h",
+        "zephyr/kernel.h",
+        "zephyr/device.h",
+        "zephyr/drivers/uart.h",
+        "zephyr/drivers/gpio.h",
+        "zephyr/logging/log.h"
+      ],
+      "func_count": 6,
+      "funcs": [
+        "bsp_rs485_init",
+        "bsp_rs485_init_channel",
+        "bsp_rs485_deinit_channel",
+        "bsp_rs485_read",
+        "bsp_rs485_health_check",
+        "bsp_rs485_inject_fault"
+      ],
+      "role": "Driver RS485 Modbus-RTU Master nửa song công (Half-duplex) điều khiển chân RE/DE.",
+      "in_edges": [],
+      "out_edges": [
+        "bsp_rs485.h",
+        "fault_codes.h"
+      ]
+    },
+    {
+      "id": "bsp_uart.h",
+      "path": "src/bsp/bsp_uart.h",
+      "layer": "BSP (Drivers)",
+      "color": "#10b981",
+      "layer_rank": 1,
+      "loc": 42,
+      "local_incs": [],
+      "sys_incs": [
+        "stdbool.h",
+        "stdint.h"
+      ],
+      "func_count": 0,
+      "funcs": [],
+      "role": "Giao diện UART không khóa với ring buffer / Zephyr message queue.",
+      "in_edges": [
+        "app_fsm.c",
+        "bsp_uart_zephyr.c"
+      ],
+      "out_edges": []
+    },
+    {
+      "id": "bsp_uart_zephyr.c",
+      "path": "src/bsp/bsp_uart_zephyr.c",
+      "layer": "BSP (Drivers)",
+      "color": "#10b981",
+      "layer_rank": 1,
+      "loc": 69,
+      "local_incs": [
+        "bsp_uart.h"
+      ],
+      "sys_incs": [
+        "zephyr/kernel.h",
+        "zephyr/device.h",
+        "zephyr/drivers/uart.h"
+      ],
+      "func_count": 4,
+      "funcs": [
+        "bsp_uart_init",
+        "bsp_uart_send_bytes",
+        "bsp_uart_get_byte",
+        "bsp_uart_is_busy"
+      ],
+      "role": "Driver USART6 kết nối ESP32/AI sử dụng hàng đợi k_msgq trong Zephyr.",
+      "in_edges": [],
+      "out_edges": [
+        "bsp_uart.h"
+      ]
+    },
+    {
+      "id": "lcd_font.c",
+      "path": "src/bsp/lcd_font.c",
+      "layer": "BSP (Drivers)",
+      "color": "#10b981",
+      "layer_rank": 1,
+      "loc": 409,
+      "local_incs": [
+        "lcd_font.h"
+      ],
+      "sys_incs": [],
+      "func_count": 0,
+      "funcs": [],
+      "role": "Bảng font bitmap ASCII 8x16 và 12x24 hỗ trợ vẽ ký tự trên LCD.",
+      "in_edges": [],
+      "out_edges": [
+        "lcd_font.h"
+      ]
+    },
+    {
+      "id": "lcd_font.h",
+      "path": "src/bsp/lcd_font.h",
+      "layer": "BSP (Drivers)",
+      "color": "#10b981",
+      "layer_rank": 1,
+      "loc": 17,
+      "local_incs": [],
+      "sys_incs": [],
+      "func_count": 0,
+      "funcs": [],
+      "role": "Khai báo dữ liệu mảng font ký tự bitmap.",
+      "in_edges": [
+        "lcd_font.c"
+      ],
+      "out_edges": []
+    },
+    {
+      "id": "main.c",
+      "path": "src/main.c",
+      "layer": "Core / Entry",
+      "color": "#ef4444",
+      "layer_rank": 4,
+      "loc": 77,
+      "local_incs": [
+        "channel_manager.h",
+        "fault_manager.h",
+        "app_fsm.h"
+      ],
+      "sys_incs": [
+        "zephyr/kernel.h",
+        "zephyr/device.h",
+        "zephyr/drivers/gpio.h",
+        "zephyr/logging/log.h"
+      ],
+      "func_count": 1,
+      "funcs": [
+        "main"
+      ],
+      "role": "Điểm khởi tạo hệ thống, cấp phát static context, chạy FSM step loop và toggle debug LED 500ms.",
+      "in_edges": [],
+      "out_edges": [
+        "channel_manager.h",
+        "fault_manager.h",
+        "app_fsm.h"
+      ]
+    },
+    {
+      "id": "button_manager.c",
+      "path": "src/services/button_manager.c",
+      "layer": "Services (Middleware)",
+      "color": "#3b82f6",
+      "layer_rank": 2,
+      "loc": 80,
+      "local_incs": [
+        "button_manager.h"
+      ],
+      "sys_incs": [
+        "string.h"
+      ],
+      "func_count": 2,
+      "funcs": [
+        "button_manager_init",
+        "button_manager_tick"
+      ],
+      "role": "Bộ lọc debounce phím bấm, bắt sự kiện nhấn giữ (Long Press) và nhấn nhả (Short Press).",
+      "in_edges": [],
+      "out_edges": [
+        "button_manager.h"
+      ]
+    },
+    {
+      "id": "button_manager.h",
+      "path": "src/services/button_manager.h",
+      "layer": "Services (Middleware)",
+      "color": "#3b82f6",
+      "layer_rank": 2,
+      "loc": 126,
+      "local_incs": [],
+      "sys_incs": [
+        "stdint.h",
+        "stdbool.h"
+      ],
+      "func_count": 0,
+      "funcs": [],
+      "role": "Quản lý trạng thái logic 16 nút bấm từ phần cứng.",
+      "in_edges": [
+        "app_fsm.h",
+        "button_manager.c",
+        "keypad_multitap.h"
+      ],
+      "out_edges": []
+    },
+    {
+      "id": "channel_config.c",
+      "path": "src/services/channel_config.c",
+      "layer": "Services (Middleware)",
+      "color": "#3b82f6",
+      "layer_rank": 2,
+      "loc": 32,
+      "local_incs": [
+        "channel_config.h"
+      ],
+      "sys_incs": [],
+      "func_count": 0,
+      "funcs": [],
+      "role": "Hiện thực các hàm phụ trợ chuyển đổi chuỗi / enum cho cấu hình kênh.",
+      "in_edges": [],
+      "out_edges": [
+        "channel_config.h"
+      ]
+    },
+    {
+      "id": "channel_config.h",
+      "path": "src/services/channel_config.h",
+      "layer": "Core / Contracts",
+      "color": "#a855f7",
+      "layer_rank": 0,
+      "loc": 198,
+      "local_incs": [],
+      "sys_incs": [
+        "stdint.h",
+        "stdbool.h"
+      ],
+      "func_count": 0,
+      "funcs": [],
+      "role": "Khai báo các struct cấu hình kênh ChannelConfig_t, chế độ kênh và dải đo.",
+      "in_edges": [
+        "bsp_lcd.h",
+        "channel_config.c",
+        "channel_driver_ops.h",
+        "channel_hw_caps.c",
+        "channel_hw_caps.h",
+        "channel_manager.h",
+        "com_protocol.h",
+        "driver_registry.h"
+      ],
+      "out_edges": []
+    },
+    {
+      "id": "channel_driver_ops.h",
+      "path": "src/services/channel_driver_ops.h",
+      "layer": "Core / Contracts",
+      "color": "#a855f7",
+      "layer_rank": 0,
+      "loc": 35,
+      "local_incs": [
+        "channel_config.h"
+      ],
+      "sys_incs": [
+        "stdint.h",
+        "stdbool.h"
+      ],
+      "func_count": 0,
+      "funcs": [],
+      "role": "Hợp đồng giao diện điều khiển phần cứng chuẩn channel_driver_ops_t (Pure Contract).",
+      "in_edges": [
+        "bsp_adc.h",
+        "bsp_din.h",
+        "bsp_dout.h",
+        "bsp_rs485.h",
+        "channel_manager.h"
+      ],
+      "out_edges": [
+        "channel_config.h"
+      ]
+    },
+    {
+      "id": "channel_hw_caps.c",
+      "path": "src/services/channel_hw_caps.c",
+      "layer": "Services (Middleware)",
+      "color": "#3b82f6",
+      "layer_rank": 2,
+      "loc": 217,
+      "local_incs": [
+        "channel_hw_caps.h",
+        "channel_config.h"
+      ],
+      "sys_incs": [
+        "stddef.h"
+      ],
+      "func_count": 2,
+      "funcs": [
+        "channel_hw_caps_is_mode_supported",
+        "channel_hw_caps_check_conflict"
+      ],
+      "role": "Ma trận tra cứu khả năng phần cứng (ADC, 4-20mA, 0-10V, DIN, DOUT, RS485) của 18 kênh vật lý.",
+      "in_edges": [],
+      "out_edges": [
+        "channel_hw_caps.h",
+        "channel_config.h"
+      ]
+    },
+    {
+      "id": "channel_hw_caps.h",
+      "path": "src/services/channel_hw_caps.h",
+      "layer": "Services (Middleware)",
+      "color": "#3b82f6",
+      "layer_rank": 2,
+      "loc": 76,
+      "local_incs": [
+        "channel_config.h"
+      ],
+      "sys_incs": [
+        "stdint.h",
+        "stdbool.h"
+      ],
+      "func_count": 0,
+      "funcs": [],
+      "role": "Định nghĩa struct cấu hình khả năng phần cứng của kênh.",
+      "in_edges": [
+        "app_fsm.c",
+        "channel_hw_caps.c",
+        "channel_manager.c",
+        "driver_registry.c"
+      ],
+      "out_edges": [
+        "channel_config.h"
+      ]
+    },
+    {
+      "id": "channel_manager.c",
+      "path": "src/services/channel_manager.c",
+      "layer": "Services (Middleware)",
+      "color": "#3b82f6",
+      "layer_rank": 2,
+      "loc": 780,
+      "local_incs": [
+        "channel_manager.h",
+        "channel_hw_caps.h",
+        "driver_registry.h"
+      ],
+      "sys_incs": [
+        "string.h",
+        "stdio.h",
+        "zephyr/logging/log.h",
+        "zephyr/drivers/flash.h",
+        "zephyr/storage/flash_map.h"
+      ],
+      "func_count": 14,
+      "funcs": [
+        "channel_manager_init",
+        "channel_manager_configure",
+        "channel_manager_disable",
+        "channel_manager_flush_nvs",
+        "channel_manager_read",
+        "channel_manager_get_snapshot",
+        "channel_manager_get_config_table",
+        "channel_manager_get_active_count",
+        "channel_manager_get_channel_config",
+        "channel_manager_read_single",
+        "channel_manager_get_dynamic_telemetry",
+        "channel_manager_check_health"
+      ],
+      "role": "Điều phối 18 kênh đo, Flash Persistence Append-Only Rolling Slot (Sector 11 128KB), chu kỳ lấy mẫu tick.",
+      "in_edges": [],
+      "out_edges": [
+        "channel_manager.h",
+        "channel_hw_caps.h",
+        "driver_registry.h"
+      ]
+    },
+    {
+      "id": "channel_manager.h",
+      "path": "src/services/channel_manager.h",
+      "layer": "Services (Middleware)",
+      "color": "#3b82f6",
+      "layer_rank": 2,
+      "loc": 142,
+      "local_incs": [
+        "channel_config.h",
+        "channel_driver_ops.h",
+        "fault_manager.h",
+        "com_protocol.h"
+      ],
+      "sys_incs": [
+        "stdint.h",
+        "stdbool.h",
+        "zephyr/kernel.h",
+        "zephyr/storage/flash_map.h"
+      ],
+      "func_count": 0,
+      "funcs": [],
+      "role": "API và dữ liệu trung tâm quản lý toàn bộ kênh cảm biến.",
+      "in_edges": [
+        "app_fsm.h",
+        "main.c",
+        "channel_manager.c",
+        "driver_registry.h"
+      ],
+      "out_edges": [
+        "channel_config.h",
+        "channel_driver_ops.h",
+        "fault_manager.h",
+        "com_protocol.h"
+      ]
+    },
+    {
+      "id": "com_protocol.c",
+      "path": "src/services/com_protocol.c",
+      "layer": "Services (Middleware)",
+      "color": "#3b82f6",
+      "layer_rank": 2,
+      "loc": 333,
+      "local_incs": [
+        "com_protocol.h"
+      ],
+      "sys_incs": [
+        "string.h"
+      ],
+      "func_count": 5,
+      "funcs": [
+        "comm_crc16",
+        "comm_packet_build",
+        "comm_parser_init",
+        "comm_parser_feed_byte",
+        "comm_parser_feed_buffer"
+      ],
+      "role": "Parser gói tin UART với ESP32 / Gateway (AI Config Proposal, Telemetry uplink, Frame CRC).",
+      "in_edges": [],
+      "out_edges": [
+        "com_protocol.h"
+      ]
+    },
+    {
+      "id": "com_protocol.h",
+      "path": "src/services/com_protocol.h",
+      "layer": "Services (Middleware)",
+      "color": "#3b82f6",
+      "layer_rank": 2,
+      "loc": 397,
+      "local_incs": [
+        "channel_config.h"
+      ],
+      "sys_incs": [
+        "stdint.h",
+        "stdbool.h",
+        "stddef.h",
+        "string.h"
+      ],
+      "func_count": 0,
+      "funcs": [],
+      "role": "Định nghĩa cấu trúc khung truyền, opcode và parser state machine cho UART6.",
+      "in_edges": [
+        "app_fsm.h",
+        "channel_manager.h",
+        "com_protocol.c"
+      ],
+      "out_edges": [
+        "channel_config.h"
+      ]
+    },
+    {
+      "id": "driver_registry.c",
+      "path": "src/services/driver_registry.c",
+      "layer": "Services (Middleware)",
+      "color": "#3b82f6",
+      "layer_rank": 2,
+      "loc": 91,
+      "local_incs": [
+        "driver_registry.h",
+        "channel_hw_caps.h",
+        "bsp_adc.h",
+        "bsp_dout.h",
+        "bsp_din.h",
+        "bsp_rs485.h"
+      ],
+      "sys_incs": [
+        "stddef.h",
+        "errno.h"
+      ],
+      "func_count": 2,
+      "funcs": [
+        "driver_registry_init_channel_hw",
+        "driver_registry_deinit_channel_hw"
+      ],
+      "role": "Bảng điều phối con trỏ hàm (driver_ops_t) decoupled kênh đo với driver BSP tương ứng.",
+      "in_edges": [],
+      "out_edges": [
+        "driver_registry.h",
+        "channel_hw_caps.h",
+        "bsp_adc.h",
+        "bsp_dout.h",
+        "bsp_din.h",
+        "bsp_rs485.h"
+      ]
+    },
+    {
+      "id": "driver_registry.h",
+      "path": "src/services/driver_registry.h",
+      "layer": "Services (Middleware)",
+      "color": "#3b82f6",
+      "layer_rank": 2,
+      "loc": 45,
+      "local_incs": [
+        "channel_config.h",
+        "channel_manager.h"
+      ],
+      "sys_incs": [
+        "stdint.h",
+        "stdbool.h"
+      ],
+      "func_count": 0,
+      "funcs": [],
+      "role": "Định nghĩa struct driver_ops_t và prototype đăng ký driver phần cứng.",
+      "in_edges": [
+        "channel_manager.c",
+        "driver_registry.c"
+      ],
+      "out_edges": [
+        "channel_config.h",
+        "channel_manager.h"
+      ]
+    },
+    {
+      "id": "fault_codes.h",
+      "path": "src/services/fault_codes.h",
+      "layer": "Core / Contracts",
+      "color": "#a855f7",
+      "layer_rank": 0,
+      "loc": 48,
+      "local_incs": [],
+      "sys_incs": [
+        "stdint.h"
+      ],
+      "func_count": 0,
+      "funcs": [],
+      "role": "Từ điển mã lỗi chuẩn hóa toàn hệ thống (Pure Contract).",
+      "in_edges": [
+        "bsp_adc_zephyr.c",
+        "bsp_din_zephyr.c",
+        "bsp_dout_zephyr.c",
+        "bsp_rs485_zephyr.c",
+        "fault_manager.h"
+      ],
+      "out_edges": []
+    },
+    {
+      "id": "fault_manager.c",
+      "path": "src/services/fault_manager.c",
+      "layer": "Services (Middleware)",
+      "color": "#3b82f6",
+      "layer_rank": 2,
+      "loc": 244,
+      "local_incs": [
+        "fault_manager.h"
+      ],
+      "sys_incs": [
+        "string.h"
+      ],
+      "func_count": 8,
+      "funcs": [
+        "fault_manager_init",
+        "fault_manager_set",
+        "fault_manager_clear",
+        "fault_manager_clear_all",
+        "fault_manager_is_active",
+        "fault_manager_get_count",
+        "fault_manager_get_list",
+        "fault_manager_get_max_severity"
+      ],
+      "role": "Đăng ký, lọc debounce, phân cấp độ nghiêm trọng (INFO->CRITICAL) và theo dõi lỗi hệ thống.",
+      "in_edges": [],
+      "out_edges": [
+        "fault_manager.h"
+      ]
+    },
+    {
+      "id": "fault_manager.h",
+      "path": "src/services/fault_manager.h",
+      "layer": "Services (Middleware)",
+      "color": "#3b82f6",
+      "layer_rank": 2,
+      "loc": 140,
+      "local_incs": [
+        "fault_codes.h"
+      ],
+      "sys_incs": [
+        "stdint.h",
+        "stdbool.h",
+        "stddef.h"
+      ],
+      "func_count": 0,
+      "funcs": [],
+      "role": "API và mã lỗi chuẩn hóa toàn hệ thống (FAULT_CODE_... và FAULT_SEV_...).",
+      "in_edges": [
+        "app_fsm.h",
+        "main.c",
+        "channel_manager.h",
+        "fault_manager.c"
+      ],
+      "out_edges": [
+        "fault_codes.h"
+      ]
+    },
+    {
+      "id": "keypad_multitap.c",
+      "path": "src/services/keypad_multitap.c",
+      "layer": "Services (Middleware)",
+      "color": "#3b82f6",
+      "layer_rank": 2,
+      "loc": 371,
+      "local_incs": [
+        "keypad_multitap.h"
+      ],
+      "sys_incs": [
+        "string.h"
+      ],
+      "func_count": 9,
+      "funcs": [
+        "keypad_map_hardware_button",
+        "keypad_multitap_init",
+        "keypad_multitap_set_callbacks",
+        "keypad_multitap_bind_buffer",
+        "keypad_multitap_set_mode",
+        "keypad_multitap_force_commit",
+        "keypad_multitap_abort",
+        "keypad_multitap_tick",
+        "keypad_multitap_handle_button_event"
+      ],
+      "role": "Động cơ gõ phím Multi-tap ITU E.161 (Numeric 0-delay, Text mode 700ms commit, Nav keys).",
+      "in_edges": [],
+      "out_edges": [
+        "keypad_multitap.h"
+      ]
+    },
+    {
+      "id": "keypad_multitap.h",
+      "path": "src/services/keypad_multitap.h",
+      "layer": "Services (Middleware)",
+      "color": "#3b82f6",
+      "layer_rank": 2,
+      "loc": 168,
+      "local_incs": [
+        "button_manager.h"
+      ],
+      "sys_incs": [
+        "stdint.h",
+        "stdbool.h"
+      ],
+      "func_count": 0,
+      "funcs": [],
+      "role": "Cấu hình bàn phím 4x4, timeout commit ký tự và callback nhận phím.",
+      "in_edges": [
+        "app_fsm.h",
+        "keypad_multitap.c"
+      ],
+      "out_edges": [
+        "button_manager.h"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "source": "app_fsm.c",
+      "target": "app_fsm.h",
+      "is_violation": false
+    },
+    {
+      "source": "app_fsm.c",
+      "target": "bsp_lcd.h",
+      "is_violation": false
+    },
+    {
+      "source": "app_fsm.c",
+      "target": "bsp_uart.h",
+      "is_violation": false
+    },
+    {
+      "source": "app_fsm.c",
+      "target": "bsp_button.h",
+      "is_violation": false
+    },
+    {
+      "source": "app_fsm.c",
+      "target": "bsp_dout.h",
+      "is_violation": false
+    },
+    {
+      "source": "app_fsm.c",
+      "target": "channel_hw_caps.h",
+      "is_violation": false
+    },
+    {
+      "source": "app_fsm.h",
+      "target": "channel_manager.h",
+      "is_violation": false
+    },
+    {
+      "source": "app_fsm.h",
+      "target": "fault_manager.h",
+      "is_violation": false
+    },
+    {
+      "source": "app_fsm.h",
+      "target": "com_protocol.h",
+      "is_violation": false
+    },
+    {
+      "source": "app_fsm.h",
+      "target": "button_manager.h",
+      "is_violation": false
+    },
+    {
+      "source": "app_fsm.h",
+      "target": "keypad_multitap.h",
+      "is_violation": false
+    },
+    {
+      "source": "bsp_adc.h",
+      "target": "channel_driver_ops.h",
+      "is_violation": false
+    },
+    {
+      "source": "bsp_adc_zephyr.c",
+      "target": "bsp_adc.h",
+      "is_violation": false
+    },
+    {
+      "source": "bsp_adc_zephyr.c",
+      "target": "fault_codes.h",
+      "is_violation": false
+    },
+    {
+      "source": "bsp_button_zephyr.c",
+      "target": "bsp_button.h",
+      "is_violation": false
+    },
+    {
+      "source": "bsp_din.h",
+      "target": "channel_driver_ops.h",
+      "is_violation": false
+    },
+    {
+      "source": "bsp_din_zephyr.c",
+      "target": "bsp_din.h",
+      "is_violation": false
+    },
+    {
+      "source": "bsp_din_zephyr.c",
+      "target": "fault_codes.h",
+      "is_violation": false
+    },
+    {
+      "source": "bsp_dout.h",
+      "target": "channel_driver_ops.h",
+      "is_violation": false
+    },
+    {
+      "source": "bsp_dout_zephyr.c",
+      "target": "bsp_dout.h",
+      "is_violation": false
+    },
+    {
+      "source": "bsp_dout_zephyr.c",
+      "target": "fault_codes.h",
+      "is_violation": false
+    },
+    {
+      "source": "bsp_lcd.h",
+      "target": "channel_config.h",
+      "is_violation": false
+    },
+    {
+      "source": "bsp_lcd_zephyr.c",
+      "target": "bsp_lcd.h",
+      "is_violation": false
+    },
+    {
+      "source": "bsp_rs485.h",
+      "target": "channel_driver_ops.h",
+      "is_violation": false
+    },
+    {
+      "source": "bsp_rs485_zephyr.c",
+      "target": "bsp_rs485.h",
+      "is_violation": false
+    },
+    {
+      "source": "bsp_rs485_zephyr.c",
+      "target": "fault_codes.h",
+      "is_violation": false
+    },
+    {
+      "source": "bsp_uart_zephyr.c",
+      "target": "bsp_uart.h",
+      "is_violation": false
+    },
+    {
+      "source": "lcd_font.c",
+      "target": "lcd_font.h",
+      "is_violation": false
+    },
+    {
+      "source": "main.c",
+      "target": "channel_manager.h",
+      "is_violation": false
+    },
+    {
+      "source": "main.c",
+      "target": "fault_manager.h",
+      "is_violation": false
+    },
+    {
+      "source": "main.c",
+      "target": "app_fsm.h",
+      "is_violation": false
+    },
+    {
+      "source": "button_manager.c",
+      "target": "button_manager.h",
+      "is_violation": false
+    },
+    {
+      "source": "channel_config.c",
+      "target": "channel_config.h",
+      "is_violation": false
+    },
+    {
+      "source": "channel_driver_ops.h",
+      "target": "channel_config.h",
+      "is_violation": false
+    },
+    {
+      "source": "channel_hw_caps.c",
+      "target": "channel_hw_caps.h",
+      "is_violation": false
+    },
+    {
+      "source": "channel_hw_caps.c",
+      "target": "channel_config.h",
+      "is_violation": false
+    },
+    {
+      "source": "channel_hw_caps.h",
+      "target": "channel_config.h",
+      "is_violation": false
+    },
+    {
+      "source": "channel_manager.c",
+      "target": "channel_manager.h",
+      "is_violation": false
+    },
+    {
+      "source": "channel_manager.c",
+      "target": "channel_hw_caps.h",
+      "is_violation": false
+    },
+    {
+      "source": "channel_manager.c",
+      "target": "driver_registry.h",
+      "is_violation": false
+    },
+    {
+      "source": "channel_manager.h",
+      "target": "channel_config.h",
+      "is_violation": false
+    },
+    {
+      "source": "channel_manager.h",
+      "target": "channel_driver_ops.h",
+      "is_violation": false
+    },
+    {
+      "source": "channel_manager.h",
+      "target": "fault_manager.h",
+      "is_violation": false
+    },
+    {
+      "source": "channel_manager.h",
+      "target": "com_protocol.h",
+      "is_violation": false
+    },
+    {
+      "source": "com_protocol.c",
+      "target": "com_protocol.h",
+      "is_violation": false
+    },
+    {
+      "source": "com_protocol.h",
+      "target": "channel_config.h",
+      "is_violation": false
+    },
+    {
+      "source": "driver_registry.c",
+      "target": "driver_registry.h",
+      "is_violation": false
+    },
+    {
+      "source": "driver_registry.c",
+      "target": "channel_hw_caps.h",
+      "is_violation": false
+    },
+    {
+      "source": "driver_registry.c",
+      "target": "bsp_adc.h",
+      "is_violation": false
+    },
+    {
+      "source": "driver_registry.c",
+      "target": "bsp_dout.h",
+      "is_violation": false
+    },
+    {
+      "source": "driver_registry.c",
+      "target": "bsp_din.h",
+      "is_violation": false
+    },
+    {
+      "source": "driver_registry.c",
+      "target": "bsp_rs485.h",
+      "is_violation": false
+    },
+    {
+      "source": "driver_registry.h",
+      "target": "channel_config.h",
+      "is_violation": false
+    },
+    {
+      "source": "driver_registry.h",
+      "target": "channel_manager.h",
+      "is_violation": false
+    },
+    {
+      "source": "fault_manager.c",
+      "target": "fault_manager.h",
+      "is_violation": false
+    },
+    {
+      "source": "fault_manager.h",
+      "target": "fault_codes.h",
+      "is_violation": false
+    },
+    {
+      "source": "keypad_multitap.c",
+      "target": "keypad_multitap.h",
+      "is_violation": false
+    },
+    {
+      "source": "keypad_multitap.h",
+      "target": "button_manager.h",
+      "is_violation": false
+    }
+  ],
+  "violations": [],
+  "total_loc": 8139,
+  "layer_stats": {
+    "Core / Entry": {
+      "files": 1,
+      "loc": 77
+    },
+    "Application (FSM)": {
+      "files": 2,
+      "loc": 1651
+    },
+    "Services (Middleware)": {
+      "files": 15,
+      "loc": 3242
+    },
+    "BSP (Drivers)": {
+      "files": 16,
+      "loc": 2888
+    },
+    "Core / Contracts": {
+      "files": 3,
+      "loc": 281
+    }
+  }
+}

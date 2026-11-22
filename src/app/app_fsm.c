@@ -14,6 +14,7 @@
 #include "bsp_uart.h"
 #include "bsp_button.h"
 #include "bsp_dout.h"
+
 #include "../services/channel_hw_caps.h"
 
 #define BOOT_SCREEN_DURATION_MS 5000
@@ -1295,6 +1296,10 @@ void app_init(app_context_t *app, const app_dependencies_t *deps)
     keypad_multitap_bind_buffer(&app->keypad, app->input_buffer, sizeof(app->input_buffer));
     keypad_multitap_set_mode(&app->keypad, KEYPAD_MODE_NAV);
 
+
+    
+    /* 4. Khởi tạo ngoại vi UART với Zephyr k_msgq */
+    bsp_uart_init();
     /* Khởi tạo UART Stream Parser */
     comm_parser_init(&app->uart_parser, on_uart_packet_received, app);
 
